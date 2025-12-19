@@ -1,0 +1,153 @@
+﻿@using Shield.Ui.App.Models.CommonModels
+@using Shield.Ui.App.Authorization
+@using Shield.Ui.App.Common
+@using Ganss.Xss;
+@using Newtonsoft.Json
+@model Shield.Ui.App.ViewModels.HecpDashboardViewModel
+@{
+    bool canCreateDiscrete = Model.SessionService.GetUserFromSession(Context).BemsId > 0;
+
+    bool canCreateOrSignDiscrete = canCreateDiscrete || PermissionHandler.HasPermission(Model.SessionService.GetUserFromSession(Context).Permissions, Shield.Common.Constants.Permission.SIGN_DISCRETE);
+    Helpers._viewDetails = false;
+    Helpers._publishedHecpView = false;
+
+    User currentUser = Model.SessionService.GetUserFromSession(Context);
+    string userRole = Model.SessionService.GetUserFromSession(Context).Role.Name.ToString().ToUpper();
+    int userRoleId = Model.SessionService.GetUserFromSession(Context).Role.Id;
+    int userBemsId = Model.SessionService.GetUserFromSession(Context).BemsId;
+    bool isITARUser = (currentUser.IsITAR ?? false) && currentUser.HasAccessToRestrictedPrograms(Model.Program);
+    var sanitizer = new HtmlSanitizer();
+    Model.isPublishedList = true;
+    var hasCircuitId = !string.IsNullOrWhiteSpace(Model.CircuitId);
+    var hasCircuitName = !string.IsNullOrWhiteSpace(Model.CircuitName);
+}
+<div class="hecp-dashboard-scroll-container">
+<div class="discrete-card-body card-body card-body-overflow card-body-lg col-md-12 discrete-col-md-12" style="min-height:20%">
+    <div id="HecpFilterContainer">
+        <input type="hidden" id="Program" value="@sanitizer.Sanitize(Model.Program)" />
+        <input type="hidden" id="site" value="@sanitizer.Sanitize(Model.Site)" />
+        <div class="row">
+            <div class="discrete-form-div">
+                <label for="HecpNameId" class="grey-text font-weight-normal small">HECP Title</label>
+                <div class="md-form">
+                    <input type="text" id="HecpNameIdPublished" oninput="validateHECPFilterButtonPublished()" value="@sanitizer.Sanitize(Model.HecpName)" />
+                </div>
+            </div>
+
+            <div class="discrete-form-div">
+                <label for="site-select-filter" class="grey-text font-weight-normal small">Site</label>
+                <div class="md-form">
+                    <select id="site-select-filter-published" class="custom-select-shield w-100" onchange="validateHECPFilterButtonPublished()">
+                        <option value="" selected></option>
+                        @foreach (var site in Model.SitesForSelectedProgram)
+                        {
+                            if (!String.IsNullOrEmpty(site))
+                            {
+                                @if (site == Model.Site)
+                                {
+                                    <option value="@site" selected>@site</option>
+                                }
+                                else
+                                {
+                                    <option value="@site">@site</option>
+                                }
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="discrete-form-div">
+                <label for="AtaChapterNumberId" class="grey-text font-weight-normal small">ATA No.</label>
+                <div class="md-form">
+                    <input type="text" id="AtaChapterNumberIdPublished" oninput="validateHECPFilterButtonPublished()" value="@sanitizer.Sanitize(Model.AtaChapterNumber)" />
+                </div>
+            </div>
+
+            <div class="discrete-form-div">
+                <label for="AtaChapterTitleId" class="grey-text font-weight-normal small">ATA Title</label>
+                <div class="md-form">
+                    <input type="text" id="AtaChapterTitleIdPublished" oninput="validateHECPFilterButtonPublished()" value="@sanitizer.Sanitize(Model.AtaChapterTitle)" />
+                </div>
+            </div>
+
+            <div class="discrete-form-div">
+                <label class="grey-text font-weight-normal small">Affected System</label>
+                <div class="md-form">
+                    <select id="AffectedSystemIdPublished" class="custom-select-shield w-100" onchange="validateHECPFilterButtonPublished()">
+                        <option value=""></option>
+                        <option value="ENGINES">ENGINES</option>
+                        <option value="ELECTRICAL">ELECTRICAL</option>
+                        <option value="WATER">WATER</option>
+                        <option value="PECS">PECS</option>
+                        <option value="LANDING_GEAR">LANDING_GEAR</option>
+                        <option value="FLIGHT_CONTROLS">FLIGHT_CONTROLS</option>
+                        <option value="PNEUMATICS">PNEUMATICS</option>
+                        <option value="HYDRAULICS">HYDRAULICS</option>
+                        <option value="OTHER">OTHER</option>
+                    </select>
+                </div>
+            </div>
+            <div class="discrete-form-div">
+                <label for="HecpType" class="grey-text font-weight-normal small">HECP Type</label>
+                <div class="md-form">
+                    <select id="HecpTypePublished" class="custom-select-shield w-100" onchange="validateHECPFilterButtonPublished();">
+                        <option value=""></option>
+                        <option value="true">Engineered</option>
+                        <option value="false">Discrete</option>
+                    </select>
+                </div>
+            </div>
+            <div class="accordion discrete-form-isolation">
+                    <button class="advancefilter-button" onclick="toggleAccordion(@Model.Program);">
+                        <i class="fa fa-plus prefix" style="padding-right:10px"></i>Advance Filters
+                    </button>  
+            </div>
+                <div id="circuit-id" class="discrete-form-div" @(hasCircuitId ? "" : "hidden")>
+                    <label for="CircuitId" class="grey-text font-weight-normal small">Circuit Id&nbsp;*</label>
+                    <div class="select">
+                        <select id="CircuitId" onchange=" validateHECPFilterButtonPublished();getCircuitDetails(@Model.Program)" class="custom-select-shield w-100" name="circuitId" value="@sanitizer.Sanitize(Model.CircuitId)">
+                            @if (hasCircuitId)
+                            {
+                                <option value="@sanitizer.Sanitize(Model.CircuitId)" selected>@sanitizer.Sanitize(Model.CircuitId)</option>
+                            }
+                            else
+                            {
+                                <option value=""></option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div id="circuit-name" class="discrete-form-div" @(hasCircuitName ? "" : "hidden")>
+                    <label for="CircuitName" class="grey-text font-weight-normal small">Circuit Name&nbsp;*<img id="circuit-loading" src="~/images/loading.gif" style="margin-left:5px; display:none" class="img-responsive" alt="Loading..." width="25" height="25" /></label>
+                    <div class="select">
+                        <select id="CircuitName" onchange=" validateHECPFilterButtonPublished();" class="custom-select-shield w-100" name="circuitName" value="@sanitizer.Sanitize(Model.CircuitName)" @(hasCircuitName ? "" : "disabled")>
+                            @if (hasCircuitName)
+                            {
+                                <option value="@sanitizer.Sanitize(Model.CircuitName)" selected>@sanitizer.Sanitize(Model.CircuitName)</option>
+                            }
+                            else
+                            {
+                                <option value=""></option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            <button id="applyReportFilter" class="btn btn-primary btn-rounded float-right discrete-search-filter search-hecp-filter-published" style="margin-left:80%;" type="button" onclick="GetFilteredHecpDataPublished(1)">Apply</button>
+            <button id="resetReportFilter" type="button" class="btn btn-primary btn-rounded float-right discrete-search-filter" onclick="resetHecpFilters(true);">Reset</button>
+            <img id="loading-hecp-published" src="~/images/loading.gif" style="margin-left:5px;margin-top:40px; display:none" class="img-responsive" alt="Loading..." width="25" height="25" />
+        </div>
+    </div>
+</div>
+<img id="loading-hecp-dashboard" src="~/images/loading.gif" style="margin-left:5px;margin-top:40px; display:none" class="img-responsive" alt="Loading..." width="50" height="50" />
+
+@*Rendering the hecp list*@
+<div id="hecp-list-table-published" class="hecp-list-table">
+    @await Html.PartialAsync("Partials/HecpDashboardPartial", @Model)
+</div>
+</div>
+<script>
+    $(document).ready(function () {
+        validateHECPFilterButtonPublished();
+    });
+</script>
