@@ -1,0 +1,78 @@
+@using Shield.Common.Constants
+@model Shield.Ui.App.ViewModels.CheckInPartialViewModel
+@using Ganss.Xss;
+@using Shield.Ui.App.Common
+@{ 
+    var sanitizer = new HtmlSanitizer();
+}
+
+<div class="card" style="padding:1.5rem 1rem 1.5rem 1rem">
+    <h3 style="border-bottom:2px solid #eceeef; padding-bottom: 0.75rem; margin-bottom: 2.25rem;">Training Status</h3>
+    @if (Model.UserTrainingData.Count != 0)
+    {
+        foreach (var trData in Model.UserTrainingData)
+        {
+            if (trData.IsTrainingValid)
+            {
+                <P>@trData.CertCode (@Constants.trainingInfo[trData.CertCode])<i class="fa fa-check green-icon"></i></p>                    
+            }
+            else
+            {
+                <P>@trData.CertCode (@Constants.trainingInfo[trData.CertCode])<i class="fa fa-times red-icon"></i></p>                
+            }                       
+        }
+        if(Model.overrideTraining)
+        {
+            <p>User <strong>@Model.recordDisplayName</strong> has not completed the required training (@TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL and @TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_AWARENESS_TRAINING_FOR_AFFECTED_PERSONS).</p>
+            <p>An override is required to check in this user.</p>
+            <br />
+            <hr>
+            <div class="text-center">
+                <button type="submit" id="override-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Override</button>
+                <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+            </div>
+        }
+        else
+        {     
+            <p>User <strong>@Model.recordDisplayName</strong> has not completed the required LOTO training (@TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL) and <strong>not authorized to perform LOTO work</strong></p>
+            <br />
+            <hr>
+            <div class="text-center">
+                <button type="submit" id="proceed-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Proceed</button>
+                <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+            </div>
+        }
+    }
+    else
+    {
+        <p>Unable to determine <strong>@Model.recordDisplayName</strong> has completed required training (@TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL or @TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_AWARENESS_TRAINING_FOR_AFFECTED_PERSONS).</p>
+        <p>We apologize for the inconvenience, please select <b>'Accept'</b> if you have verified with @Model.recordDisplayName and wish to check in.</p>
+        <br />
+        <hr>
+        <div class="text-center">
+            <button type="submit" id="override-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Accept</button>
+            <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+        </div>
+    }
+    <div class="row">
+        <input type="hidden" name="lineNumber" class="form-control" asp-for="@Model.lineNumber" value="@sanitizer.Sanitize(Model.lineNumber)">
+        <input type="hidden" name="program" class="form-control" asp-for="@Model.program" value="@sanitizer.Sanitize(Model.program)">
+        <input type="hidden" name="reason" class="form-control" asp-for="@Model.reason" value="@sanitizer.Sanitize(Model.reason)">
+        <input type="hidden" name="personType" class="form-control" asp-for="@Model.personType" value="@sanitizer.Sanitize(Model.personType)">
+        <input type="hidden" name="status" class="form-control" asp-for="@Model.status" value="@sanitizer.Sanitize(Model.status)">
+        <input type="hidden" name="systemAction" class="form-control" asp-for="@Model.systemAction" value="@Model.systemAction">
+        <input type="hidden" name="site" class="form-control" asp-for="@Model.site" value="@sanitizer.Sanitize(Model.site)">
+        <input type="hidden" id="workAreaIdList" name="WorkAreaIdString" class="form-control" asp-for="@Model.WorkAreaIdString" value="@sanitizer.Sanitize(Model.WorkAreaIdString)">
+        <input type="hidden" name="nameOrBems" class="form-control" asp-for="@Model.nameOrBems" value="@sanitizer.Sanitize(Model.nameOrBems)">
+        <input type="hidden" name="jobId" class="form-control" asp-for="@Model.jobId" value="@sanitizer.Sanitize(Model.jobId)">
+        <input type="hidden" id="overrideTraining" name="overrideTraining" class="form-control" asp-for="@Model.overrideTraining" value="@Model.overrideTraining">
+        <input type="hidden" id="trainingConfirmation" name="trainingConfirmation" class="form-control" asp-for="@Model.trainingConfirmation" value="@Model.trainingConfirmation">
+        <input type="hidden" id="checkOutNeededFlag" name="checkOutNeededFlag" class="form-control" asp-for="@Model.checkOutNeededFlag" value="@Model.checkOutNeededFlag">
+        <input type="hidden" name="bemsId" class="form-control" asp-for="@Model.bemsId" value="@Model.bemsId">
+        <input type="hidden" name="assignedBCBems" class="form-control" asp-for="@Model.assignedBCBems">
+        <input type="hidden" name="CurrentUser" class="form-control" asp-for="@Model.CurrentUser">
+        <input type="hidden" name="ConfirmingBCBadge" class="form-control" asp-for="@Model.ConfirmingBCBadge" />
+        <input type="hidden" name="ConfirmingCCPin" class="form-control" asp-for="@Model.ConfirmingCCPin" />
+        <input type="hidden" name="assignedCCPin" class="form-control" asp-for="@Model.assignedCCPin" value="@sanitizer.Sanitize(Model.assignedCCPin)" />
+    </div>
+</div>
