@@ -125,3 +125,321 @@
 }
 
  
+
+@using Shield.Common.Constants
+@model Shield.Ui.App.ViewModels.CheckInPartialViewModel
+@using Ganss.Xss;
+@using Shield.Ui.App.Common
+@{ 
+    var sanitizer = new HtmlSanitizer();
+    var completedTrainings = Model.UserTrainingData?.Where(x => x.IsTrainingValid).ToList() ?? new List<MyLearningDataResponse>();
+    var incompleteTrainings = Model.UserTrainingData?.Where(x => !x.IsTrainingValid).ToList() ?? new List<MyLearningDataResponse>();
+    var completedCertCodes = string.Join(", ", completedTrainings.Select(x => x.CertCode));
+}
+
+<div class="card" style="padding:1.5rem 1rem 1.5rem 1rem">
+    <h3 style="border-bottom:2px solid #eceeef; padding-bottom: 0.75rem; margin-bottom: 2.25rem;">Training Status</h3>
+    
+    @if (Model.UserTrainingData != null && Model.UserTrainingData.Count != 0)
+    {
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;">
+            <!-- Completed Trainings Row - Collapsible -->
+            @if (completedTrainings.Count > 0)
+            {
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 0.75rem; background-color: #f8f9fa;">
+                        <strong>Completed trainings</strong>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center; background-color: #f8f9fa;">
+                        <span onclick="toggleTrainingAccordion()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 1rem;">
+                            <span style="color: #6c757d;">@completedCertCodes</span>
+                            <i id="accordion-icon" class="fa fa-chevron-down" style="color: #6c757d; font-size: 0.85rem;"></i>
+                        </span>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center; width: 50px; background-color: #f8f9fa;">
+                        <i class="fa fa-check" style="color: #28a745;"></i>
+                    </td>
+                </tr>
+                <tr id="completed-trainings-details" style="display: none;">
+                    <td colspan="3" style="padding: 0;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            @foreach (var trData in completedTrainings)
+                            {
+                                <tr style="border-bottom: 1px solid #e9ecef;">
+                                    <td style="padding: 0.5rem 0.75rem 0.5rem 2rem; color: #6c757d;">
+                                        @trData.TrainingName
+                                    </td>
+                                    <td style="padding: 0.5rem 0.75rem; text-align: center; color: #6c757d;">
+                                        @trData.CertCode
+                                    </td>
+                                    <td style="padding: 0.5rem 0.75rem; text-align: center; width: 50px;">
+                                        <i class="fa fa-check" style="color: #28a745;"></i>
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    </td>
+                </tr>
+            }
+
+            <!-- Incomplete Trainings Section - Always Visible -->
+            @if (incompleteTrainings.Count > 0)
+            {
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td colspan="3" style="padding: 0.75rem; background-color: #f8f9fa;">
+                        <strong>Incomplete training</strong>
+                    </td>
+                </tr>
+                @foreach (var trData in incompleteTrainings)
+                {
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 0.5rem 0.75rem 0.5rem 2rem;">
+                            @trData.TrainingName
+                        </td>
+                        <td style="padding: 0.5rem 0.75rem; text-align: center;">
+                            @trData.CertCode
+                        </td>
+                        <td style="padding: 0.5rem 0.75rem; text-align: center; width: 50px;">
+                            <i class="fa fa-times" style="color: #dc3545;"></i>
+                        </td>
+                    </tr>
+                }
+            }
+        </table>
+
+        <!-- Messages and Buttons Section -->
+        @if(Model.overrideTraining)
+        {
+            <p>User <strong>@Model.recordDisplayName</strong> has not completed all required trainings.</p>
+            <p>An override is required to check in this user.</p>
+            <br />
+            <hr>
+            <div class="text-center">
+                <button type="submit" id="override-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Override</button>
+                <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+            </div>
+        }
+        else
+        {     
+            <p>User <strong>@Model.recordDisplayName</strong> has incomplete trainings and may <strong>not be authorized to perform certain work</strong></p>
+            <br />
+            <hr>
+            <div class="text-center">
+                <button type="submit" id="proceed-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Proceed</button>
+                <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+            </div>
+        }
+    }
+    else
+    {
+        <p>Unable to determine if <strong>@Model.recordDisplayName</strong> has completed required trainings.</p>
+        <p>We apologize for the inconvenience, please select <b>'Accept'</b> if you have verified with @Model.recordDisplayName and wish to check in.</p>
+        <br />
+        <hr>
+        <div class="text-center">
+            <button type="submit" id="override-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Accept</button>
+            <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+        </div>
+    }
+    
+    <div class="row">
+        <input type="hidden" name="lineNumber" class="form-control" asp-for="@Model.lineNumber" value="@sanitizer.Sanitize(Model.lineNumber)">
+        <input type="hidden" name="program" class="form-control" asp-for="@Model.program" value="@sanitizer.Sanitize(Model.program)">
+        <input type="hidden" name="reason" class="form-control" asp-for="@Model.reason" value="@sanitizer.Sanitize(Model.reason)">
+        <input type="hidden" name="personType" class="form-control" asp-for="@Model.personType" value="@sanitizer.Sanitize(Model.personType)">
+        <input type="hidden" name="status" class="form-control" asp-for="@Model.status" value="@sanitizer.Sanitize(Model.status)">
+        <input type="hidden" name="systemAction" class="form-control" asp-for="@Model.systemAction" value="@Model.systemAction">
+        <input type="hidden" name="site" class="form-control" asp-for="@Model.site" value="@sanitizer.Sanitize(Model.site)">
+        <input type="hidden" id="workAreaIdList" name="WorkAreaIdString" class="form-control" asp-for="@Model.WorkAreaIdString" value="@sanitizer.Sanitize(Model.WorkAreaIdString)">
+        <input type="hidden" name="nameOrBems" class="form-control" asp-for="@Model.nameOrBems" value="@sanitizer.Sanitize(Model.nameOrBems)">
+        <input type="hidden" name="jobId" class="form-control" asp-for="@Model.jobId" value="@sanitizer.Sanitize(Model.jobId)">
+        <input type="hidden" id="overrideTraining" name="overrideTraining" class="form-control" asp-for="@Model.overrideTraining" value="@Model.overrideTraining">
+        <input type="hidden" id="trainingConfirmation" name="trainingConfirmation" class="form-control" asp-for="@Model.trainingConfirmation" value="@Model.trainingConfirmation">
+        <input type="hidden" id="checkOutNeededFlag" name="checkOutNeededFlag" class="form-control" asp-for="@Model.checkOutNeededFlag" value="@Model.checkOutNeededFlag">
+        <input type="hidden" name="bemsId" class="form-control" asp-for="@Model.bemsId" value="@Model.bemsId">
+        <input type="hidden" name="assignedBCBems" class="form-control" asp-for="@Model.assignedBCBems">
+        <input type="hidden" name="CurrentUser" class="form-control" asp-for="@Model.CurrentUser">
+        <input type="hidden" name="ConfirmingBCBadge" class="form-control" asp-for="@Model.ConfirmingBCBadge" />
+        <input type="hidden" name="ConfirmingCCPin" class="form-control" asp-for="@Model.ConfirmingCCPin" />
+        <input type="hidden" name="assignedCCPin" class="form-control" asp-for="@Model.assignedCCPin" value="@sanitizer.Sanitize(Model.assignedCCPin)" />
+    </div>
+</div>
+
+<script>
+function toggleTrainingAccordion() {
+    var content = document.getElementById('completed-trainings-details');
+    var icon = document.getElementById('accordion-icon');
+    
+    if (content.style.display === 'none' || content.style.display === '') {
+        content.style.display = 'table-row';
+        icon.className = 'fa fa-chevron-up';
+    } else {
+        content.style.display = 'none';
+        icon.className = 'fa fa-chevron-down';
+    }
+}
+</script>
+
+
+
+
+
+function toggleTrainingAccordion() {
+    if ($('#completed-trainings-details').is(':hidden')) {
+        $('#completed-trainings-details').attr('hidden', false);
+        $('#completed-trainings-details').css('display', 'table-row');
+        $('#accordion-icon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+    }
+    else {
+        $('#completed-trainings-details').attr('hidden', true);
+        $('#completed-trainings-details').css('display', 'none');
+        $('#accordion-icon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    }
+}
+
+
+public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
+{
+    try
+    {
+        vm.site = HttpUtility.HtmlDecode(vm.site);
+        ViewData["UserType"] = vm.personType;
+        if (vm.WorkAreaIdString != null)
+        {
+            var idList = vm.WorkAreaIdString.Split(',').ToList();
+            vm.workArea = idList.Select(int.Parse).ToList();
+        }
+        vm.WorkAreas = await _airplaneDataService.GetActiveWorkAreasAsync(vm.site, vm.program);
+
+        if (ModelState.IsValid)
+        {
+            vm.CurrentUser = GetCurrentUserFromViewModel(vm);
+            // If no one is logged in, BC should scan Badge or Enter the correct PIN for check-in to continue
+            if (vm.CurrentUser == null || vm.CurrentUser.BemsId == 0)
+            {
+                string badge = vm.ConfirmingBCBadge;
+                string pin = vm.ConfirmingCCPin;
+
+                if (badge == null && pin == null)
+                {
+                    _toastNotification.AddErrorToastMessage("Person Not Checked In. Scan The Correct Badge or Enter the correct PIN of This Line's CC.");
+                    return PartialView("Partials/CheckInPartial", vm);
+                }
+
+                HTTPResponseWrapper<bool> isValidResponse = badge != null ? await _externalService.IsValidBadge(vm.assignedBCBems, badge): await _userService.IsValidPin(vm.assignedBCBems, pin);
+
+                if (!isValidResponse.Data)
+                {
+                    _toastNotification.AddErrorToastMessage(isValidResponse.Message);
+                    return PartialView("Partials/CheckInPartial", vm);
+                }
+            }
+
+            CheckInRecord rec = _checkInTranslator.GetCheckInRecordFromViewModel(vm, DateTime.UtcNow, "Check In", false);
+
+            HTTPResponseWrapper<CheckInRecord> response = new HTTPResponseWrapper<CheckInRecord>();
+            if (vm.checkOutNeededFlag)
+            {
+                var checkOutResponse = await _checkInService.PostCheckOutUserByBems(vm.bemsId);
+                if (checkOutResponse.Status == Shield.Common.Constants.ShieldHttpWrapper.Status.FAILED)
+                {
+                    return PartialView("../Shared/Error/ErrorPartial", checkOutResponse.Message);
+                }
+
+                vm.checkOutNeededFlag = false;
+            }
+
+            //Getting training data when the CC didn't override or proceeded after verifying training data
+            if (!vm.overrideTraining && !vm.trainingConfirmation)
+            {
+                // Mock JSON data for training - TODO: Replace with actual API call when ready
+                List<MyLearningDataResponse> MyLearningDataResponse1 = new List<MyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "CERT-1001", TrainingName = "Introduction to Aviation Safety", IsTrainingValid = true },
+                    new MyLearningDataResponse { CertCode = "CERT-1002", TrainingName = "Advanced Systems Troubleshooting", IsTrainingValid = false },
+                    new MyLearningDataResponse { CertCode = "CERT-1003", TrainingName = "Wing Structural Inspection", IsTrainingValid = true },
+                    new MyLearningDataResponse { CertCode = "CERT-2001", TrainingName = "Electrical Power Management", IsTrainingValid = true },
+                    new MyLearningDataResponse { CertCode = "CERT-2002", TrainingName = "Hydraulics Maintenance Basics", IsTrainingValid = false },
+                    new MyLearningDataResponse { CertCode = "CERT-3001", TrainingName = "Cabin Systems and Safety", IsTrainingValid = true },
+                    new MyLearningDataResponse { CertCode = "CERT-3002", TrainingName = "Avionics Software Updates", IsTrainingValid = false },
+                    new MyLearningDataResponse { CertCode = "CERT-4001", TrainingName = "Fuel System Operations", IsTrainingValid = true }
+                };
+                
+                TrainingInfo trainingInfo = new TrainingInfo 
+                { 
+                    BemsId = rec.BemsId, 
+                    MyLearningDataResponse = MyLearningDataResponse1 
+                };
+
+                // Commented out - API call when ready
+                // TrainingInfo trainingInfo = await _externalService.GetMyLearningDataAsync(rec.BemsId, rec.BadgeNumber, courseCodeList);
+                
+                //show error message when there is no BemsId for the given BadgeData
+                if (trainingInfo?.BemsId == 0 && rec.Name == null)
+                {
+                    _toastNotification.AddErrorToastMessage("Unable to Find Badge Data For This Badge.Please Try Using BEMSID.");
+                    return PartialView("Partials/CheckInPartial", vm);
+                }
+
+                // Check if any training is incomplete
+                bool hasIncompleteTraining = trainingInfo.MyLearningDataResponse.Any(x => !x.IsTrainingValid);
+                
+                if (hasIncompleteTraining)
+                {
+                    // Determine which type of popup to show
+                    bool allTrainingsIncomplete = trainingInfo.MyLearningDataResponse.All(x => !x.IsTrainingValid);
+                    
+                    if (allTrainingsIncomplete)
+                    {
+                        vm.overrideTraining = true;
+                        Console.WriteLine("Override training popup is shown");
+                    }
+                    else
+                    {
+                        vm.trainingConfirmation = true;
+                        Console.WriteLine("Training confirmation with proceed button popup is shown");
+                    }
+                    
+                    User user = trainingInfo.BemsId != 0 ? await _userService.GetUserByBemsidAsync(trainingInfo.BemsId) : new Models.CommonModels.User();
+                    vm.UserTrainingData = trainingInfo.MyLearningDataResponse;
+                    vm.recordDisplayName = trainingInfo.BemsId != 0 ? user.DisplayName : rec.Name;
+                    return PartialView("Partials/TrainingStatusPartial", vm);
+                }
+            }
+
+            response = await _checkInService.PostCheckinAsync(rec);
+
+            if (response == null)
+            {
+                ViewBag.Status = "Failed";
+                ViewBag.Message = "Unable to reach Check In Service, please try again.";
+                return PartialView("Partials/CheckInPartial", vm);
+            }
+            else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS))
+            {
+                ViewBag.Status = "Success";
+                ViewBag.Message = response.Message;
+                CheckInPartialViewModel newVM = _checkInTranslator.GetNewCheckInPartialVMAfterSuccess(vm);
+                return PartialView("Partials/CheckInPartial", newVM);
+            }
+            else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.NOT_MODIFIED))
+            {
+                vm.checkOutNeededFlag = true;
+                vm.bemsId = response.Data.BemsId;
+                ViewData["ResponseMessage"] = response.Message;
+                return PartialView("Partials/CheckOutCheckInPartial", vm);
+            }
+            else
+            {
+                _toastNotification.AddErrorToastMessage(response.Message);
+                return PartialView("Partials/CheckInPartial", vm);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine(ex);
+    }
+
+    return PartialView("Partials/CheckInPartial", vm);
+}
