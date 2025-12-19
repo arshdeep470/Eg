@@ -443,3 +443,144 @@ public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
 
     return PartialView("Partials/CheckInPartial", vm);
 }
+
+
+
+@using Shield.Common.Constants
+@model Shield.Ui.App.ViewModels.CheckInPartialViewModel
+@using Ganss.Xss;
+@using Shield.Ui.App.Common
+@{ 
+    var sanitizer = new HtmlSanitizer();
+}
+
+<div class="card" style="padding:1.5rem 1rem 1.5rem 1rem">
+    <h3 style="border-bottom:2px solid #eceeef; padding-bottom: 0.75rem; margin-bottom: 2.25rem;">Training Status</h3>
+    
+    @if (Model.UserTrainingData != null && Model.UserTrainingData.Count != 0)
+    {
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;">
+            <!-- Completed Trainings Row - Collapsible -->
+            @if (Model.UserTrainingData.Any(x => x.IsTrainingValid))
+            {
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 0.75rem; background-color: #f8f9fa;">
+                        <strong>Completed trainings</strong>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center; background-color: #f8f9fa;">
+                        <span onclick="toggleTrainingAccordion()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 1rem;">
+                            <span style="color: #6c757d;">
+                                @string.Join(", ", Model.UserTrainingData.Where(x => x.IsTrainingValid).Select(x => x.CertCode))
+                            </span>
+                            <i id="accordion-icon" class="fa fa-chevron-down" style="color: #6c757d; font-size: 0.85rem;"></i>
+                        </span>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center; width: 50px; background-color: #f8f9fa;">
+                        <i class="fa fa-check" style="color: #28a745;"></i>
+                    </td>
+                </tr>
+                <tr id="completed-trainings-details" hidden>
+                    <td colspan="3" style="padding: 0;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            @foreach (var trData in Model.UserTrainingData.Where(x => x.IsTrainingValid))
+                            {
+                                <tr style="border-bottom: 1px solid #e9ecef;">
+                                    <td style="padding: 0.5rem 0.75rem 0.5rem 2rem; color: #6c757d;">
+                                        @trData.TrainingName
+                                    </td>
+                                    <td style="padding: 0.5rem 0.75rem; text-align: center; color: #6c757d;">
+                                        @trData.CertCode
+                                    </td>
+                                    <td style="padding: 0.5rem 0.75rem; text-align: center; width: 50px;">
+                                        <i class="fa fa-check" style="color: #28a745;"></i>
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    </td>
+                </tr>
+            }
+
+            <!-- Incomplete Trainings Section - Always Visible -->
+            @if (Model.UserTrainingData.Any(x => !x.IsTrainingValid))
+            {
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td colspan="3" style="padding: 0.75rem; background-color: #f8f9fa;">
+                        <strong>Incomplete training</strong>
+                    </td>
+                </tr>
+                @foreach (var trData in Model.UserTrainingData.Where(x => !x.IsTrainingValid))
+                {
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 0.5rem 0.75rem 0.5rem 2rem;">
+                            @trData.TrainingName
+                        </td>
+                        <td style="padding: 0.5rem 0.75rem; text-align: center;">
+                            @trData.CertCode
+                        </td>
+                        <td style="padding: 0.5rem 0.75rem; text-align: center; width: 50px;">
+                            <i class="fa fa-times" style="color: #dc3545;"></i>
+                        </td>
+                    </tr>
+                }
+            }
+        </table>
+
+        <!-- Messages and Buttons Section -->
+        @if(Model.overrideTraining)
+        {
+            <p>User <strong>@Model.recordDisplayName</strong> has not completed all required trainings.</p>
+            <p>An override is required to check in this user.</p>
+            <br />
+            <hr>
+            <div class="text-center">
+                <button type="submit" id="override-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Override</button>
+                <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+            </div>
+        }
+        else
+        {     
+            <p>User <strong>@Model.recordDisplayName</strong> has incomplete trainings and may <strong>not be authorized to perform certain work</strong></p>
+            <br />
+            <hr>
+            <div class="text-center">
+                <button type="submit" id="proceed-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Proceed</button>
+                <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+            </div>
+        }
+    }
+    else
+    {
+        <p>Unable to determine if <strong>@Model.recordDisplayName</strong> has completed required trainings.</p>
+        <p>We apologize for the inconvenience, please select <b>'Accept'</b> if you have verified with @Model.recordDisplayName and wish to check in.</p>
+        <br />
+        <hr>
+        <div class="text-center">
+            <button type="submit" id="override-btn" class="btn btn-primary btn-rounded float-right"><i class="fa fa-check-circle prefix" style="margin-right:0.5rem;" onclick="autoFocusOnCheckIn()"></i>Accept</button>
+            <button type="button" id="cancel-btn" onclick="OnCancelClick()" class="btn btn-secondary-gray btn-rounded float-right"><i class="fa fa-times prefix" style="margin-right:0.5rem;"></i>Cancel</button>
+        </div>
+    }
+    
+    <div class="row">
+        <input type="hidden" name="lineNumber" class="form-control" asp-for="@Model.lineNumber" value="@sanitizer.Sanitize(Model.lineNumber)">
+        <input type="hidden" name="program" class="form-control" asp-for="@Model.program" value="@sanitizer.Sanitize(Model.program)">
+        <input type="hidden" name="reason" class="form-control" asp-for="@Model.reason" value="@sanitizer.Sanitize(Model.reason)">
+        <input type="hidden" name="personType" class="form-control" asp-for="@Model.personType" value="@sanitizer.Sanitize(Model.personType)">
+        <input type="hidden" name="status" class="form-control" asp-for="@Model.status" value="@sanitizer.Sanitize(Model.status)">
+        <input type="hidden" name="systemAction" class="form-control" asp-for="@Model.systemAction" value="@Model.systemAction">
+        <input type="hidden" name="site" class="form-control" asp-for="@Model.site" value="@sanitizer.Sanitize(Model.site)">
+        <input type="hidden" id="workAreaIdList" name="WorkAreaIdString" class="form-control" asp-for="@Model.WorkAreaIdString" value="@sanitizer.Sanitize(Model.WorkAreaIdString)">
+        <input type="hidden" name="nameOrBems" class="form-control" asp-for="@Model.nameOrBems" value="@sanitizer.Sanitize(Model.nameOrBems)">
+        <input type="hidden" name="jobId" class="form-control" asp-for="@Model.jobId" value="@sanitizer.Sanitize(Model.jobId)">
+        <input type="hidden" id="overrideTraining" name="overrideTraining" class="form-control" asp-for="@Model.overrideTraining" value="@Model.overrideTraining">
+        <input type="hidden" id="trainingConfirmation" name="trainingConfirmation" class="form-control" asp-for="@Model.trainingConfirmation" value="@Model.trainingConfirmation">
+        <input type="hidden" id="checkOutNeededFlag" name="checkOutNeededFlag" class="form-control" asp-for="@Model.checkOutNeededFlag" value="@Model.checkOutNeededFlag">
+        <input type="hidden" name="bemsId" class="form-control" asp-for="@Model.bemsId" value="@Model.bemsId">
+        <input type="hidden" name="assignedBCBems" class="form-control" asp-for="@Model.assignedBCBems">
+        <input type="hidden" name="CurrentUser" class="form-control" asp-for="@Model.CurrentUser">
+        <input type="hidden" name="ConfirmingBCBadge" class="form-control" asp-for="@Model.ConfirmingBCBadge" />
+        <input type="hidden" name="ConfirmingCCPin" class="form-control" asp-for="@Model.ConfirmingCCPin" />
+        <input type="hidden" name="assignedCCPin" class="form-control" asp-for="@Model.assignedCCPin" value="@sanitizer.Sanitize(Model.assignedCCPin)" />
+    </div>
+</div>
+
