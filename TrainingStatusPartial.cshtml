@@ -76,3 +76,52 @@
         <input type="hidden" name="assignedCCPin" class="form-control" asp-for="@Model.assignedCCPin" value="@sanitizer.Sanitize(Model.assignedCCPin)" />
     </div>
 </div>
+
+
+{
+  "BemsId": 12345,
+  "MyLearningDataResponse": [
+    {
+      "CertCode": "CERT-1001",
+      "TrainingName": "Introduction to Aviation Safety",
+      "IsTrainingValid": true
+    },
+    {
+      "CertCode": "CERT-1002",
+      "TrainingName": "Advanced Systems Troubleshooting",
+      "IsTrainingValid": false
+    },
+    {
+      "CertCode": "CERT-1003",
+      "TrainingName": "Wing Structural Inspection",
+      "IsTrainingValid": true
+    },
+    {
+      "CertCode": "CERT-2001",
+      "TrainingName": "Electrical Power Management",
+      "IsTrainingValid": true
+    },
+    {
+      "CertCode": "CERT-2002",
+      "TrainingName": "Hydraulics Maintenance Basics",
+      "IsTrainingValid": false
+    },
+    {
+      "CertCode": "CERT-3001",
+      "TrainingName": "Cabin Systems and Safety",
+      "IsTrainingValid": true
+    },
+    {
+      "CertCode": "CERT-3002",
+      "TrainingName": "Avionics Software Updates",
+      "IsTrainingValid": false
+    },
+    {
+      "CertCode": "CERT-4001",
+      "TrainingName": "Fuel System Operations",
+      "IsTrainingValid": true
+    }
+  ]
+}
+
+ 
