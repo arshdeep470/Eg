@@ -584,3 +584,128 @@ public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
     </div>
 </div>
 
+
+
+
+// Completed Trainings Accordion
+function toggleCompletedTrainingAccordion() {
+    if ($('#completed-trainings-details').is(':hidden')) {
+        $('#completed-trainings-details').attr('hidden', false);
+        $('#completed-trainings-details').show();
+        $('#completed-accordion-icon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+    }
+    else {
+        $('#completed-trainings-details').attr('hidden', true);
+        $('#completed-trainings-details').hide();
+        $('#completed-accordion-icon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    }
+}
+
+// Incomplete Trainings Accordion
+function toggleIncompleteTrainingAccordion() {
+    if ($('#incomplete-trainings-details').is(':hidden')) {
+        $('#incomplete-trainings-details').attr('hidden', false);
+        $('#incomplete-trainings-details').show();
+        $('#incomplete-accordion-icon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+    }
+    else {
+        $('#incomplete-trainings-details').attr('hidden', true);
+        $('#incomplete-trainings-details').hide();
+        $('#incomplete-accordion-icon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    }
+}
+
+
+
+@using Shield.Common.Constants
+@using Ganss.Xss;
+@using Shield.Ui.App.Common
+@model Shield.Ui.App.ViewModels.CheckInPartialViewModel
+@{ 
+    var sanitizer = new HtmlSanitizer();
+}
+
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;">
+    <!-- Completed Trainings Row - Collapsible -->
+    @if (Model.UserTrainingData.Any(x => x.IsTrainingValid))
+    {
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 0.75rem; background-color: #f8f9fa; width: 55%;">
+                <strong>Completed trainings</strong>
+            </td>
+            <td style="padding: 0.75rem; text-align: center; background-color: #f8f9fa; width: 30%;">
+                <span onclick="toggleCompletedTrainingAccordion()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 1rem;">
+                    <span style="color: #6c757d;">
+                        @string.Join(", ", Model.UserTrainingData.Where(x => x.IsTrainingValid).Select(x => x.CertCode))
+                    </span>
+                    <i id="completed-accordion-icon" class="fa fa-chevron-down" style="color: #6c757d; font-size: 0.85rem;"></i>
+                </span>
+            </td>
+            <td style="padding: 0.75rem; text-align: center; width: 15%; background-color: #f8f9fa;">
+                <i class="fa fa-check" style="color: #28a745;"></i>
+            </td>
+        </tr>
+        <tr id="completed-trainings-details" hidden>
+            <td colspan="3" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    @foreach (var trData in Model.UserTrainingData.Where(x => x.IsTrainingValid))
+                    {
+                        <tr style="border-bottom: 1px solid #e9ecef;">
+                            <td style="padding: 0.5rem 0.75rem 0.5rem 2rem; color: #6c757d; width: 55%;">
+                                @trData.TrainingName
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: #6c757d; width: 30%;">
+                                @trData.CertCode
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; width: 15%;">
+                                <i class="fa fa-check" style="color: #28a745;"></i>
+                            </td>
+                        </tr>
+                    }
+                </table>
+            </td>
+        </tr>
+    }
+
+    <!-- Incomplete Trainings Section - Collapsible (Expanded by Default) -->
+    @if (Model.UserTrainingData.Any(x => !x.IsTrainingValid))
+    {
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 0.75rem; background-color: #f8f9fa; width: 55%;">
+                <strong>Incomplete training</strong>
+            </td>
+            <td style="padding: 0.75rem; text-align: center; background-color: #f8f9fa; width: 30%;">
+                <span onclick="toggleIncompleteTrainingAccordion()" style="cursor: pointer; display: inline-flex; align-items: center; gap: 1rem;">
+                    <span style="color: #6c757d;">
+                        @string.Join(", ", Model.UserTrainingData.Where(x => !x.IsTrainingValid).Select(x => x.CertCode))
+                    </span>
+                    <i id="incomplete-accordion-icon" class="fa fa-chevron-down" style="color: #6c757d; font-size: 0.85rem;"></i>
+                </span>
+            </td>
+            <td style="padding: 0.75rem; text-align: center; width: 15%; background-color: #f8f9fa;">
+                <i class="fa fa-times" style="color: #dc3545;"></i>
+            </td>
+        </tr>
+        <tr id="incomplete-trainings-details">
+            <td colspan="3" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    @foreach (var trData in Model.UserTrainingData.Where(x => !x.IsTrainingValid))
+                    {
+                        <tr style="border-bottom: 1px solid #e9ecef;">
+                            <td style="padding: 0.5rem 0.75rem 0.5rem 2rem; width: 55%;">
+                                @trData.TrainingName
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; width: 30%;">
+                                @trData.CertCode
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; width: 15%;">
+                                <i class="fa fa-times" style="color: #dc3545;"></i>
+                            </td>
+                        </tr>
+                    }
+                </table>
+            </td>
+        </tr>
+    }
+</table>
+
