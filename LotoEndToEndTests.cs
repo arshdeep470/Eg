@@ -2263,3 +2263,122 @@
         public string Access_Token { get; set; }
     }
 }
+
+
+[TestMethod]
+public async Task Should_NotSignInAE_When_AEIsAlreadySignedIntoSameLoto()
+{
+    using (var context = _context)
+    {
+        // Arrange
+        LotoDetails loto = new LotoDetails()
+        {
+            Id = 1,
+            Reason = "Test Loto",
+            WorkPackage = "WP-123",
+            CreatedAt = DateTime.Now,
+            LineNumber = "500",
+            Model = "787",
+            Site = "Renton"
+        };
+
+        LotoAE existingAE = new LotoAE
+        {
+            AEBemsId = 12345,
+            LotoId = 1,
+            FullName = "John Doe"
+        };
+
+        context.Add(loto);
+        context.Add(existingAE);
+        context.SaveChanges();
+
+        var signInAERequest = new Shield.Common.Models.Loto.SigningAERequest()
+        {
+            AEBemsId = 12345,
+            AEName = "John Doe",
+            LotoId = 1
+        };
+
+        StringContent content = new StringContent(JsonConvert.SerializeObject(signInAERequest), Encoding.UTF8, "application/json");
+
+        // Act
+        var response = _client.PostAsync("api/Loto/AESignIn", content);
+        var value = await response.Result.Content.ReadAsStringAsync();
+        HTTPResponseWrapper<LotoAE> responseWrapper = JsonConvert.DeserializeObject<HTTPResponseWrapper<LotoAE>>(value);
+
+        // Assert
+        Assert.AreEqual(System.Net.HttpStatusCode.OK, response.Result.StatusCode);
+        Assert.AreEqual(Shield.Common.Constants.ShieldHttpWrapper.Status.NOT_MODIFIED, responseWrapper.Status);
+        Assert.AreEqual(Shield.Common.Constants.ShieldHttpWrapper.Reason.ALREADY_EXISTS, responseWrapper.Reason);
+        Assert.IsNotNull(responseWrapper.Data);
+        Assert.AreEqual(12345, responseWrapper.Data.AEBemsId);
+        Assert.AreEqual(1, responseWrapper.Data.LotoId);
+        Assert.AreEqual("John Doe", responseWrapper.Data.FullName);
+    }
+}
+
+[TestMethod]
+public async Task Should_NotSignInAE_When_AEIsAlreadySignedIntoDifferentLoto()
+{
+    using (var context = _context)
+    {
+        // Arrange
+        LotoDetails loto1 = new LotoDetails()
+        {
+            Id = 1,
+            Reason = "Existing Loto",
+            WorkPackage = "WP-111",
+            CreatedAt = DateTime.Now,
+            LineNumber = "500",
+            Model = "787",
+            Site = "Renton"
+        };
+
+        LotoDetails loto2 = new LotoDetails()
+        {
+            Id = 2,
+            Reason = "New Loto",
+            WorkPackage = "WP-222",
+            CreatedAt = DateTime.Now,
+            LineNumber = "500",
+            Model = "787",
+            Site = "Renton"
+        };
+
+        LotoAE existingAE = new LotoAE
+        {
+            AEBemsId = 12345,
+            LotoId = 1,
+            FullName = "John Doe"
+        };
+
+        context.Add(loto1);
+        context.Add(loto2);
+        context.Add(existingAE);
+        context.SaveChanges();
+
+        var signInAERequest = new Shield.Common.Models.Loto.SigningAERequest()
+        {
+            AEBemsId = 12345,
+            AEName = "John Doe",
+            LotoId = 2
+        };
+
+        StringContent content = new StringContent(JsonConvert.SerializeObject(signInAERequest), Encoding.UTF8, "application/json");
+
+        // Act
+        var response = _client.PostAsync("api/Loto/AESignIn", content);
+        var value = await response.Result.Content.ReadAsStringAsync();
+        HTTPResponseWrapper<LotoAE> responseWrapper = JsonConvert.DeserializeObject<HTTPResponseWrapper<LotoAE>>(value);
+
+        // Assert
+        Assert.AreEqual(System.Net.HttpStatusCode.OK, response.Result.StatusCode);
+        Assert.AreEqual(Shield.Common.Constants.ShieldHttpWrapper.Status.NOT_MODIFIED, responseWrapper.Status);
+        Assert.AreEqual(Shield.Common.Constants.ShieldHttpWrapper.Reason.ALREADY_EXISTS, responseWrapper.Reason);
+        Assert.IsNotNull(responseWrapper.Data);
+        Assert.AreEqual(12345, responseWrapper.Data.AEBemsId);
+        Assert.AreEqual(1, responseWrapper.Data.LotoId);
+        Assert.AreEqual("John Doe", responseWrapper.Data.FullName);
+    }
+}
