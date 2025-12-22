@@ -1,0 +1,223 @@
+﻿.checkin-tab-link {
+    text-align: center;
+    color: black;
+    padding: .7rem 0;
+}
+
+.checkin-tab:hover {
+    background-color: #00b0ff;
+}
+
+.checkin-tab-link:hover {
+    color: black;
+    border-bottom: solid;
+    border-bottom-color: #00B0FF;
+}
+
+.checkin-tab-content {
+    box-shadow: 5px #888888;
+}
+
+.checkin-tab {
+    width: 14%;
+    height: 2.5rem;
+    padding: 0 0 0 0;
+    text-transform: uppercase;
+}
+
+    .checkin-tab .active {
+        color: #212121 !important;
+        background-color: white !important;
+        border-bottom: solid;
+        border-bottom-color: #00B0FF !important;
+        box-shadow: 0px 2px 5px 0px rgba(0,0,0,0.16), 0px 2px 10px 0px rgba(0,0,0,0.12);
+    }
+
+.checkin-card-body {
+    padding: 2rem;
+}
+
+.margin-left-40px {
+    margin-left: 40px;
+}
+
+.disable {
+    pointer-events: none;
+    cursor: default;
+}
+
+.AtaChapterClass > th {
+    font-size: large !important;
+}
+
+.acknowledgeBemsText {
+    line-height: 1.2rem;
+}
+
+.ccCredentialsLabel {
+    color: #757575;
+    position: relative;
+    top: .8rem;
+    left: .7rem;
+    font-size: .9rem;
+    cursor: text;
+    padding-bottom: 1rem
+}
+
+.green-icon {
+    color: green;
+    font-weight: bold;
+    float: right;
+    padding-right: 2rem;
+}
+
+.red-icon {
+    color: red;
+    font-weight: bold;
+    float: right;
+    padding-right: 2rem;
+}
+
+.dropdown-check-list {
+    display: inline-block;
+}
+
+    .dropdown-check-list .custom-select-shield {
+        position: relative;
+        cursor: pointer;
+        display: inline-block;
+        padding: 0.2rem 0.6rem 0.2rem 0rem;
+        margin-bottom: 0 !important;
+        line-height: 1rem !important;
+        height: 3.2rem !important;
+    }
+
+    .dropdown-check-list div.work-areas-select {
+        padding: 0.1rem;
+        display: none;
+        margin: 0;
+        border: 0.1rem solid #ccc;
+        border-top: none;
+    }
+
+        .dropdown-check-list div.work-areas-select label {
+            list-style: none;
+            margin-left: 1rem;
+        }
+
+    .dropdown-check-list.visible .custom-select-shield {
+        color: #4285F4;
+    }
+
+    .dropdown-check-list.visible .work-areas-select {
+        display: block;
+    }
+
+div.work-areas-select .work-area-label:hover {
+    background-color: grey !important;
+    color: white !important;
+}
+
+.work-areas-select {
+    max-height: 12rem;
+    min-height: 6rem;
+    z-index: 10;
+    position: absolute;
+    background-color: white;
+}
+
+.work-area-label {
+    position: relative !important;
+    font-size: medium !important;
+    color: #495057 !important;
+    height: 1.2rem !important;
+    margin-bottom: 0rem !important;
+}
+
+.work-areas-select input {
+    box-sizing: border-box;
+    padding: 0.2rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+}
+
+.search-content {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.work-area:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.highlight-work-area {
+    background-color: yellow;
+    color: black;
+}
+
+.clear-search-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    font-size: 16px;
+    margin-left: -25px;
+    padding: 0;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.table-container {
+    max-height: 50rem;
+    overflow-y: scroll;
+}
+
+.scrollable-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+    .scrollable-table thead {
+        background-color: #f2f2f2;
+        position: sticky;
+        z-index: 1;
+        top: 0;
+    }
+
+.line-btn {
+    padding: .5rem .5rem !important;
+    margin: 6px !important;
+}
+
+.content-right {
+    display: flex;
+    justify-content: right;
+}
+
+.work-area-container {
+    overflow-y: auto;
+    min-height: 5rem;
+    max-height: 12rem;
+    background-color: white;
+}
+.linecard-lntext {
+    margin-top: 1rem;
+    font-size: 2.1rem;
+    color: #B00020;
+}
+hastag-linecard-lntext {
+    font-size: 2rem;
+}
+.no-text-transform{
+    text-transform :none;
+}
+
+.CheckOutRecord {
+    background: none !important;
+    border: none;
+    padding: 0 !important;
+    cursor: pointer;
+}

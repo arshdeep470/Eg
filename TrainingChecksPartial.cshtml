@@ -1,0 +1,93 @@
+@using Shield.Common.Constants
+@model Shield.Ui.App.ViewModels.CheckInPartialViewModel
+@using Shield.Ui.App.Common
+
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;">
+    <!-- Completed Trainings Row - Collapsible -->
+    @if (Model.UserTrainingData.Any(x => x.IsTrainingValid))
+    {
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 0.75rem; background-color: #f8f9fa;">
+                <strong>Completed trainings</strong>
+            </td>
+            <td style="padding: 0.75rem; text-align: center; background-color: #f8f9fa;">
+                <span style="color: #6c757d;">
+                    @string.Join(", ", Model.UserTrainingData.Where(x => x.IsTrainingValid).Select(x => x.CertCode))
+                </span>
+
+            </td>
+            <td style="padding: 0.75rem; text-align: center; width: 15%; background-color: #f8f9fa;">
+                <span onclick="toggleCompletedTrainingAccordion()"
+                    style="cursor: pointer; display: inline-flex; align-items: center; gap: 1rem;">
+                    <i id="completed-accordion-icon" class="fa fa-chevron-down"
+                        style="color: #6c757d; font-size: 0.85rem;"></i>
+                </span>
+            </td>
+        </tr>
+        <tr id="completed-trainings-details" hidden>
+            <td colspan="3" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    @foreach (var trainingData in Model.UserTrainingData.Where(x => x.IsTrainingValid))
+                    {
+                        <tr style="border-bottom: 1px solid #e9ecef;">
+                            <td style="padding: 0.5rem 0.5rem 0.5rem 0.75rem; color: #6c757d; width: 55%;">
+                                @* @trainingData.TrainingName *@ Training Name
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: #6c757d; width: 30%;">
+                                @trainingData.CertCode
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; width: 15%;">
+                                <i class="fa fa-check" style="color: #28a745;"></i>
+                            </td>
+                        </tr>
+                    }
+                </table>
+            </td>
+        </tr>
+    }
+
+    <!-- Incomplete Trainings Section - Collapsible -->
+    @if (Model.UserTrainingData.Any(x => !x.IsTrainingValid))
+    {
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 0.75rem; background-color: #f8f9fa; ">
+                <strong>Incomplete trainings</strong>
+            </td>
+            <td style="padding: 0.75rem; text-align: center; background-color: #f8f9fa;">
+
+                <span style="color: #6c757d;">
+                    @string.Join(", ", Model.UserTrainingData.Where(x => !x.IsTrainingValid).Select(x => x.CertCode))
+                </span>
+
+
+            </td>
+            <td style="padding: 0.75rem; text-align: center; width: 15%; background-color: #f8f9fa;">
+                <span onclick="toggleIncompleteTrainingAccordion()"
+                    style="cursor: pointer; display: inline-flex; align-items: center; gap: 1rem;">
+                    <i id="incomplete-accordion-icon" class="fa fa-chevron-up"
+                        style="color: #6c757d; font-size: 0.85rem;"></i>
+                </span>
+            </td>
+        </tr>
+        <tr id="incomplete-trainings-details">
+            <td colspan="3" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    @foreach (var trainingData in Model.UserTrainingData.Where(x => !x.IsTrainingValid))
+                    {
+                        <tr style="border-bottom: 1px solid #e9ecef;">
+                            <td style="padding: 0.5rem 0.5rem 0.5rem 0.75rem; width: 55%;">
+                                @* @trainingData.TrainingName *@ Training Name
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; width: 30%;">
+                                @trainingData.CertCode
+                            </td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; width: 15%;">
+                                <i class="fa fa-times" style="color: #dc3545;"></i>
+                            </td>
+                        </tr>
+                    }
+                </table>
+            </td>
+        </tr>
+    }
+</table>
