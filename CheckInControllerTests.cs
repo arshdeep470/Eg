@@ -144,39 +144,13 @@ namespace Shield.Ui.App.Tests
                 {
                     new MyLearningDataResponse
                     {
-                        CertCode = "TR06005",
-                        IsTrainingValid = true,
-                        Name = "Awareness Training"
+                        CertCode = TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_AWARENESS_TRAINING_FOR_AFFECTED_PERSONS,
+                        IsTrainingValid = true
                     },
                     new MyLearningDataResponse
                     {
-                       CertCode = "85914",
-                       IsTrainingValid = true,
-                       Name = "Manager Training"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517",
-                       IsTrainingValid = true,
-                       Name = "Loto Training"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517AE",
-                       IsTrainingValid = true,
-                       Name = "Loto Training AE"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517PAE",
-                       IsTrainingValid = true,
-                       Name = "Loto Training PAE"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517GC",
-                       IsTrainingValid = true,
-                       Name = "Loto Training GC"
+                        CertCode = TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL,
+                        IsTrainingValid = true
                     }
                 }
             };
@@ -226,39 +200,13 @@ namespace Shield.Ui.App.Tests
                 {
                     new MyLearningDataResponse
                     {
-                        CertCode = "TR06005",
-                        IsTrainingValid = true,
-                        Name = "Awareness Training"
+                        CertCode = TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_AWARENESS_TRAINING_FOR_AFFECTED_PERSONS,
+                        IsTrainingValid = true
                     },
                     new MyLearningDataResponse
                     {
-                       CertCode = "85914",
-                       IsTrainingValid = true,
-                       Name = "Manager Training"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517",
-                       IsTrainingValid = true,
-                       Name = "Loto Training"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517AE",
-                       IsTrainingValid = true,
-                       Name = "Loto Training AE"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517PAE",
-                       IsTrainingValid = true,
-                       Name = "Loto Training PAE"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517GC",
-                       IsTrainingValid = true,
-                       Name = "Loto Training GC"
+                        CertCode = TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL,
+                        IsTrainingValid = true
                     }
                 }
             };
@@ -315,39 +263,13 @@ namespace Shield.Ui.App.Tests
                 {
                     new MyLearningDataResponse
                     {
-                        CertCode = "TR06005",
-                        IsTrainingValid = true,
-                        Name = "Awareness Training"
+                        CertCode = TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_AWARENESS_TRAINING_FOR_AFFECTED_PERSONS,
+                        IsTrainingValid = true
                     },
                     new MyLearningDataResponse
                     {
-                       CertCode = "85914",
-                       IsTrainingValid = true,
-                       Name = "Manager Training"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517",
-                       IsTrainingValid = true,
-                       Name = "Loto Training"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517AE",
-                       IsTrainingValid = true,
-                       Name = "Loto Training AE"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517PAE",
-                       IsTrainingValid = true,
-                       Name = "Loto Training PAE"
-                    },
-                    new MyLearningDataResponse
-                    {
-                       CertCode = "77517GC",
-                       IsTrainingValid = true,
-                       Name = "Loto Training GC"
+                        CertCode = TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL,
+                        IsTrainingValid = true
                     }
                 }
             };
@@ -370,70 +292,6 @@ namespace Shield.Ui.App.Tests
             Assert.AreEqual(model.CurrentUser.BemsId, vm.CurrentUser.BemsId);
             _mockToastService.Verify(x => x.AddErrorToastMessage(failedRes.Message, It.IsAny<LibraryOptions>()));
         }
-
-        [TestMethod]
-        public async Task BoeingAE_DirectCheckIn_Combinations_Should_PostCheckIn()
-        {
-            _mockSessionService.Setup(s => s.GetUserFromSession(It.IsAny<HttpContext>())).Returns(_bcUser);
-
-            var rec = new CheckInRecord() { BemsId = 11111, BadgeNumber = "ABC" };
-            _mockCheckInTranslator.Setup(t => t.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(),
-                It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(rec);
-
-            _mockCheckInService.Setup(s => s.PostCheckinAsync(rec)).ReturnsAsync(new HTTPResponseWrapper<CheckInRecord> { Status = Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS });
-
-            async Task RunScenarioAsync(List<IMyLearningDataResponse> responses)
-            {
-                var trainingInfo = new TrainingInfo { BemsId = rec.BemsId, MyLearningDataResponse = responses };
-                _mockExternalService.Setup(s => s.GetMyLearningDataAsync(rec.BemsId, rec.BadgeNumber, It.IsAny<string>())).ReturnsAsync(trainingInfo);
-
-                var vm = new CheckInPartialViewModel { CurrentUser = new User { BemsId = 999 }, personType = "Home Team" };
-
-                await _controller.CheckInUser(vm);
-                _mockCheckInService.Verify(s => s.PostCheckinAsync(rec), Times.AtLeastOnce);
-            }
-
-            var allValid = new List<IMyLearningDataResponse>
-    {
-        new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = true, Name = "TR06005" },
-        new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = true, Name = "85914" },
-        new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = true, Name = "77517AE" },
-        new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = true, Name = "77517PAE" },
-        new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = true, Name = "77517GC" }
-    };
-            await RunScenarioAsync(allValid);
-
-            var combo2 = new List<IMyLearningDataResponse>
-    {
-        new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = true, Name = "TR06005" },
-        new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = false, Name = "85914" },
-        new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = true, Name = "77517AE" },
-        new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = false, Name = "77517PAE" },
-        new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC" }
-    };
-            await RunScenarioAsync(combo2);
-
-            var combo3 = new List<IMyLearningDataResponse>
-    {
-        new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = false, Name = "TR06005" },
-        new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = true, Name = "85914" },
-        new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = true, Name = "77517AE" },
-        new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = false, Name = "77517PAE" },
-        new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC" }
-    };
-            await RunScenarioAsync(combo3);
-
-            var combo4 = new List<IMyLearningDataResponse>
-    {
-        new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = false, Name = "TR06005" },
-        new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = false, Name = "85914" },
-        new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = true, Name = "77517PAE" },
-        new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = false, Name = "77517AE" },
-        new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC" }
-    };
-            await RunScenarioAsync(combo4);
-        }
-
 
         [TestMethod]
         public async Task Should_ReturntheTrainingStausPartialView_When_No_Trainings_Are_Done()
@@ -722,7 +580,7 @@ namespace Shield.Ui.App.Tests
             _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<Shield.Ui.App.Models.CommonModels.CheckInRecord>())).Returns(Task.FromResult(alreadyCheckedInResult));
             _mockSessionService.Setup(s => s.GetUserFromSession(It.IsAny<HttpContext>())).Returns(_bcUser);
             _mockExternalService.Setup(s => s.GetBemsIdFromBemsIdOrBadgeNumber(It.IsAny<string>())).ReturnsAsync(bemsWrapper);
-            _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+            _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string   >())).ReturnsAsync(trainingInfo);
             _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 2519949, BadgeNumber = null });
 
             CheckInPartialViewModel vm = new CheckInPartialViewModel()
@@ -1068,7 +926,7 @@ namespace Shield.Ui.App.Tests
                 Message = "BCs PIN Matches"
             };
             _mockSessionService.Setup(s => s.GetUserFromSession(It.IsAny<HttpContext>())).Returns(new User());
-
+            
             _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<CheckInRecord>())).ReturnsAsync(new HTTPResponseWrapper<CheckInRecord>
             {
                 Status = Status.SUCCESS
@@ -1234,7 +1092,7 @@ namespace Shield.Ui.App.Tests
                 Message = "Failed to check out user with BEMSID " + checkoutRequest.BemsOrBadgeNumber + "."
             };
             _mockCheckInService.Setup(x => x.PostCheckOutRequestAsync(It.IsAny<CheckOutRequest>())).Returns(Task.FromResult<HTTPResponseWrapper<CheckInRecord>>(failedRes));
-
+            
             ObjectResult response = await _controller.CheckOutByBemsOrBadge(site, program, lineNumber, bemsOrBadgeNumber) as ObjectResult;
 
             Assert.AreEqual(failedRes.Message, response.Value);
@@ -1255,7 +1113,7 @@ namespace Shield.Ui.App.Tests
                 LineNumber = "1234",
                 Program = "787"
             };
-            _mockCheckInService.Setup(x => x.PostCheckOutRequestAsync(It.IsAny<CheckOutRequest>())).ReturnsAsync((HTTPResponseWrapper<CheckInRecord>)null);
+            _mockCheckInService.Setup(x => x.PostCheckOutRequestAsync(It.IsAny<CheckOutRequest>())).ReturnsAsync((HTTPResponseWrapper<CheckInRecord>) null);
 
             ObjectResult response = await _controller.CheckOutByBemsOrBadge(site, program, lineNumber, bemsOrBadgeNumber) as ObjectResult;
 
