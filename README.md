@@ -1,35 +1,82 @@
-SCENARIOS FOR TEST CASES:
+//Getting training data when the CC didn't override or proceeded after verifying training data
+if (!vm.overrideTraining && !vm.trainingConfirmation && doTrainingChecks)
+{
+    string trainingActions = (isVisitor && visitorUsingBemsId) ? Shield.Common.Constants.ShieldTasksName.CHECKIN_NON_BOEING : Shield.Common.Constants.ShieldTasksName.CHECKIN_BOEING;
+    TrainingInfo trainingInfo = await _externalService.GetMyLearningDataAsync(rec.BemsId, rec.BadgeNumber, trainingActions);
 
-1. For BoeingAE: 
+    //show error message when there is no BemsId for the given BadgeData
+    if (trainingInfo?.BemsId == 0 && rec.Name == null)
+    {
+        _toastNotification.AddErrorToastMessage("Unable to Find Badge Data For This Badge.Please Try Using BEMSID.");
+        return PartialView("Partials/CheckInPartial", vm);
+    }
 
-*DIRECT CHECKIN:
-    i) All Trainings Completed/valid (TR06005, 85914, 77517AE, 77517PAE and 77517GC) - Direct CheckIn.
-    ii) TR6005 valid/completed, Any of (77517AE, 77517PAE and 77517GC) valid/completed, 85914 invalid/notcompleted - Direct CheckIn
-    iii) TR06005 Invalid, Any of (77517AE, 77517PAE and 77517GC) valid/completed, 85914 valid - Direct CheckIn
-    iv) TR06005 Invalid, Any of (77517AE, 77517PAE and 77517GC) valid/completed, 85914 Invalid - Direct CheckIn
-     
-So for the above cases, there should be one method with above combinations of mock training data ok. So before making the new function, check if we have any function/method in test case that do directly checkin functionality after training checks  or see accordingly whether the proceed button should be visible with trainingstatuspartial or we should not show trainingstatus partial according to the controller logic ok.
+    bool hasIncompleteTraining = trainingInfo.MyLearningDataResponse.Any(x => !x.IsTrainingValid);
+    bool allTrainingsIncomplete = trainingInfo.MyLearningDataResponse.All(x => !x.IsTrainingValid);
+    bool any77517Valid = trainingInfo.MyLearningDataResponse.Any(x =>
+        x.CertCode != null &&
+        x.CertCode.Trim().StartsWith("77517", StringComparison.Ordinal) &&
+        x.IsTrainingValid);
 
-*PROCEED BUTTON WITH TRAININGSTATUSPARTIAL:
-     i) TR06005 valid, All (77517AE, 77517PAE and 77517GC) Invalid/Incompleted, 85914 valid - TrainingStatusPartial with proceed button should be shown.
-    ii) TR06005 Invalid, All (77517AE, 77517PAE and 77517GC) Invalid/Incompleted, 85914 valid - TrainingStatusPartial with proceed button should be shown.
-    iii) TR06005 valid, All (77517AE, 77517PAE and 77517GC) Invalid/Incompleted, 85914 Invalid - TrainingStatusPartial with proceed button should be shown.
+    if (hasIncompleteTraining)
+    {
+        if (allTrainingsIncomplete)
+        {
+            vm.overrideTraining = true;
+            Console.WriteLine("Override training popup is shown");
+        }
+        else if (any77517Valid)
+        {
+            // At least one 77517 valid — direct check-in.
+            Console.WriteLine("77517 valid — direct check-in");
+        }
+        else
+        {
+            // Some trainings incomplete, none of the 77517 valid => show proceed popup.
+            vm.trainingConfirmation = true;
+            Console.WriteLine("Training confirmation with proceed button popup is shown");
+        }
 
+        if (vm.overrideTraining || vm.trainingConfirmation)
+        {
+            User user = trainingInfo.BemsId != 0 ? await _userService.GetUserByBemsidAsync(trainingInfo.BemsId) : new Models.CommonModels.User();
+            vm.UserTrainingData = trainingInfo.MyLearningDataResponse
+                .OrderBy(t => System.Text.RegularExpressions.Regex.Match(t.CertCode, @"^\d+").Value)
+                .ThenBy(t => t.CertCode)
+                .ToList();
+            vm.recordDisplayName = trainingInfo.BemsId != 0 ? user.DisplayName : rec.Name;
+            return PartialView("Partials/TrainingStatusPartial", vm);
+        }
+    }
+} // <--- Training validation block ends here
 
-Here also, check if we have any existing function which shows trainingStatusPartial with proceed button or not and then inside one method create all the three combinations of above trainings data as mock data.
+// Check-in happens here for ALL cases:
+// 1. Direct check-in (no incomplete training or has valid 77517)
+// 2. After clicking Override/Proceed (vm.overrideTraining or vm.trainingConfirmation = true)
+response = await _checkInService.PostCheckinAsync(rec);
 
-*OVERRIDE BUTTON WITH TRAINING STATUS PARTIAL:
-     i) All Trainings Incompleted/Invalid (TR06005, 85914, 77517AE, 77517PAE and 77517GC) - TrainingStatusPartial with override button should be shown.
-
-Here also, check if we have any existing function which shows trainingStatusPartial with override button or not and then inside one method create the above combination of above trainings data as mock data.
-
-2. For NonBoeingAE: (That is Visitor)
-
-The logic is written only for visitorUsingName not for visitorUsingBemsID in controller logic ok. We will add the logic later by doing the training check and there the parameter will be CHECKIN_NON_BOEING in below code:
-TrainingInfo trainingInfo = await _externalService.GetMyLearningDataAsync(rec.BemsId, rec.BadgeNumber, "CHECKIN_BOEING");
-
-SCENARIOS FOR TEST CASES:
-* DIRECT CHECKIN:
-    i) Using Name - Direct CheckIn.
- * Using BemsID - Show override pop basically TrainingStatusPartial with Override Button if training (77517X36106) is Invalid.
-                                    Else Direct CheckIn , if training is valid.
+if (response == null)
+{
+    ViewBag.Status = "Failed";
+    ViewBag.Message = "Unable to reach Check In Service, please try again.";
+    return PartialView("Partials/CheckInPartial", vm);
+}
+else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS))
+{
+    ViewBag.Status = "Success";
+    ViewBag.Message = response.Message;
+    CheckInPartialViewModel newVM = _checkInTranslator.GetNewCheckInPartialVMAfterSuccess(vm);
+    return PartialView("Partials/CheckInPartial", newVM);
+}
+else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.NOT_MODIFIED))
+{
+    vm.checkOutNeededFlag = true;
+    vm.bemsId = response.Data.BemsId;
+    ViewData["ResponseMessage"] = response.Message;
+    return PartialView("Partials/CheckOutCheckInPartial", vm);
+}
+else
+{
+    _toastNotification.AddErrorToastMessage(response.Message);
+    return PartialView("Partials/CheckInPartial", vm);
+}
