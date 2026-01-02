@@ -501,4 +501,217 @@ function emptyWorkAreasOnTabSwitch() {
     $('.work-area').each(function () {
         $(this).prop('disabled', false); //enable selected checkboxes
     });
+
 }
+
+
+Controller
+
+public async Task<HTTPResponseWrapper<List<IMyLearningDataResponse>>> GetMyLearningData(int bemsId, string shieldActionName)
+        {
+            try
+            {
+                List<IMyLearningDataResponse> data = await _myLearningDataService.GetMyLearningDataResponseList(bemsId, shieldActionName);
+                return new HTTPResponseWrapper<List<IMyLearningDataResponse>> { Data = data, Status = "Success" };
+            }
+            catch (Exception ex)
+            {
+                return new HTTPResponseWrapper<List<IMyLearningDataResponse>> { Data = Enumerable.Empty<IMyLearningDataResponse>().ToList(), Status = "Failed", Message = ex.Message };
+            }
+        }
+
+
+
+Service:
+
+using Newtonsoft.Json;
+using Shield.Common;
+using Shield.Common.Constants.WebResponse;
+using Shield.Common.Models.MyLearning;
+using Shield.Common.Models.MyLearning.Interfaces;
+using Shield.Common.Models.WebResponse;
+using Shield.Services.External.Data.Interfaces;
+using Shield.Services.External.Models.DataModels;
+using Shield.Services.External.Services.Interfaces;
+
+namespace Shield.Services.External.Services.Implementations
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MyLearningDataService"/> class.
+    /// </summary>
+    /// <param name="myLearningDAO">
+    /// The my learning dao.
+    /// </param>
+    /// <param name="httpClientService">
+    /// The http client service.
+    /// </param>
+    public class MyLearningDataService(IMyLearningDAO myLearningDAO,ITrainingDetailsDAO trainingDetailsDAO, HttpClientService httpClientService) : IMyLearningDataService
+    {
+        /// <summary>
+        /// The _my learning dao.
+        /// </summary>
+        private readonly IMyLearningDAO _myLearningDAO = myLearningDAO;
+        private readonly ITrainingDetailsDAO _trainingDetailsDAO = trainingDetailsDAO;
+
+        /// <summary>
+        /// The _client service.
+        /// </summary>
+        private HttpClientService _clientService = httpClientService;
+
+        /// <summary>
+        /// The get my learning data response list.
+        /// </summary>
+        /// <param name="bemsId">
+        /// The bems id.
+        /// </param>
+        /// <param name="trainingIdList">
+        /// The training id list.
+        /// </param>
+        /// <returns>
+        /// The <see cref="Task{MyLearningDataResponse}"/>.
+        /// </returns>
+        public async Task<List<IMyLearningDataResponse>> GetMyLearningDataResponseList(int bemsId, string shieldActionName)
+        {
+            List<IMyLearningDataResponse> myLearningDataResponseList = [];
+            List<int> trainingListWithInsiteException = [];
+            List<TrainingMasterData> trainingList = _trainingDetailsDAO.GetTrainingIdsFromModuleActionTypeAsync(shieldActionName);
+            foreach (var training in trainingList)
+            {
+                bool isTrainingValid = false;
+                string certCode = training.TrainingId.ToString();
+                string trainingName = training.Name;
+                try
+                {
+                    //isTrainingValid = await GetIsTrainingValidFromMyLearningAPIAsync(bemsId, certCode);
+                    trainingListWithInsiteException.Add(training.Id); // should remove this and uncomment the above line.
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"My Learning API call threw an error for BemsID [{bemsId}] and Training [{certCode}] with Exception {ex}");
+                    trainingListWithInsiteException.Add(training.Id);
+                }
+                finally
+                {
+                    myLearningDataResponseList.Add(new MyLearningDataResponse
+                    {
+                        CertCode = certCode,
+                        Name = trainingName,
+                        IsTrainingValid = isTrainingValid
+                    });
+                }
+            }
+
+            if (trainingListWithInsiteException.Count > 0)
+            {
+                try
+                {
+                    Console.Out.WriteLine($"My Learning Shield DB Called for BemsID [{bemsId}] & Training [{string.Join(',', trainingListWithInsiteException)}]");
+                    List<MyLearningDataModel> validTrainingsFromDB = _myLearningDAO.GetMyLearningDataModelList(bemsId, trainingListWithInsiteException);
+
+                    foreach (MyLearningDataModel myLearningData in validTrainingsFromDB)
+                    {
+                        var trainingCode = _trainingDetailsDAO.GetCertCodeFromTrainingMasterId(myLearningData.TrainingMasterDataId);
+
+                        myLearningDataResponseList.FirstOrDefault(x => x.CertCode == trainingCode).IsTrainingValid = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"DB call threw an error for BemsID [{bemsId}] and Training [{string.Join(',', trainingListWithInsiteException)}] with Exception {ex}");
+                }
+            }
+
+            return myLearningDataResponseList;
+        }
+
+        /// <summary>
+        /// The get is training valid from my learning API.
+        /// </summary>
+        /// <param name="bemsId">
+        /// The bems id.
+        /// </param>
+        /// <param name="training">
+        /// The training.
+        /// </param>
+        /// <returns>
+        /// The <see cref="Task"/>.
+        /// </returns>
+        private async Task<bool> GetIsTrainingValidFromMyLearningAPIAsync(int bemsId, string training)
+        {
+            string myLearningCertificationURL = Environment.GetEnvironmentVariable("MY_LEARNING_API").Replace("[BEMS_ID]", bemsId.ToString());
+            myLearningCertificationURL = $"{myLearningCertificationURL}/{training}";
+            HttpResponseMessage response = await _clientService.GetClient().GetAsync(new Uri(myLearningCertificationURL));
+            MyLearningResponse myLearningResponse = JsonConvert.DeserializeObject<MyLearningResponse>(await response.Content.ReadAsStringAsync());
+            if (myLearningResponse == null)
+            {
+                Console.Error.WriteLine("My Learning Response is null.");
+            }
+            else
+            {
+                Console.Out.WriteLine($"My Learning Response is {myLearningResponse.LM_CERT_IND_RESP_Z?.LM_VALID_STTS}");
+            }
+
+            return string.Equals(myLearningResponse.LM_CERT_IND_RESP_Z.LM_VALID_STTS, MyLearningResponseConstants.Valid, StringComparison.InvariantCultureIgnoreCase);
+        }
+    }
+}
+
+
+DAO:
+
+using Shield.Services.External.Models.DataModels;
+using Shield.Services.External.Models;
+using Shield.Services.External.Data.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace Shield.Services.External.Data.Implementations
+{
+    public class TrainingDetailsDAO(ExternalDataContext externalDataContext) : ITrainingDetailsDAO
+    {
+        private ExternalDataContext _externalDataContext = externalDataContext;
+        public List<TrainingMasterData> GetTrainingIdsFromModuleActionTypeAsync(string moduleActionType)
+        {
+            if (string.IsNullOrWhiteSpace(moduleActionType))
+                return new List<TrainingMasterData>();
+
+            var module = _externalDataContext.ShieldTasksMaster
+                         .AsNoTracking()
+                         .FirstOrDefault(m => m.Name == moduleActionType);
+
+            if (module == null)
+                return new List<TrainingMasterData>();
+
+            List<int> trainingIds = _externalDataContext.TaskAndTrainingsMapping
+                             .AsNoTracking()
+                             .Where(map => map.ModuleId == module.Id && map.IsActive)
+                             .Select(map => map.TrainingId)
+                             .Distinct()
+                             .ToList();
+
+            if (!trainingIds.Any())
+                return new List<TrainingMasterData>();
+
+            List<TrainingMasterData> trainings = _externalDataContext.TrainingMasterData
+                            .AsNoTracking()
+                            .Where(t => trainingIds.Contains(t.Id))
+                            .ToList();
+
+            return trainings;
+        }
+
+        public string GetCertCodeFromTrainingMasterId(int trainingMasterId)
+        {
+
+            var certCode = _externalDataContext.TrainingMasterData
+                             .AsNoTracking()
+                             .Where(a => a.Id == trainingMasterId)
+                             .Select(a => a.TrainingId)
+                             .FirstOrDefault();
+            if (certCode == null)    
+                return string.Empty;
+
+            return certCode;
+        }
+    }
+}
+
