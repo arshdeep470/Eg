@@ -1348,4 +1348,407 @@
                 Data = 2519949
             };
 
+
             _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<Shield.Ui.App.Models.CommonModels.CheckInRecord>())).Returns(Task.FromResult(alreadyChec
+
+
+
+
+
+
+
+
+
+
+
+
+ [TestMethod]
+        public async Task Should_DirectlyCheckIn_When_BoeingAE_Has_Valid_77517_Training()
+        {
+            var successResponse = new HTTPResponseWrapper<Shield.Ui.App.Models.CommonModels.CheckInRecord>
+            {
+                Status = Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS,
+                Message = "Check In Successful"
+            };
+
+            // Test all 4 direct check-in combinations
+            var trainingCombinations = new List<List<IMyLearningDataResponse>>
+            {
+                // Scenario 1: All trainings valid
+                new List<IMyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = true, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = true, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = true, Name = "77517AE Training" },
+                    new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = true, Name = "77517PAE Training" },
+                    new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = true, Name = "77517GC Training" }
+                },
+                // Scenario 2: TR06005 valid, Any 77517 valid, 85914 invalid
+                new List<IMyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = true, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = false, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = true, Name = "77517PAE Training" }
+                },
+                // Scenario 3: TR06005 invalid, Any 77517 valid, 85914 valid
+                new List<IMyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = false, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = true, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = true, Name = "77517GC Training" }
+                },
+                // Scenario 4: TR06005 invalid, Any 77517 valid, 85914 invalid
+                new List<IMyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = false, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = false, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = true, Name = "77517AE Training" }
+                }
+            };
+
+            // Test both Boeing AE person types
+            var personTypes = new List<string> { "Home Team", "Traveller" };
+
+            foreach (var personType in personTypes)
+            {
+                foreach (var trainingData in trainingCombinations)
+                {
+                    TrainingInfo trainingInfo = new()
+                    {
+                        BemsId = 123456,
+                        MyLearningDataResponse = trainingData
+                    };
+
+                    _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+                    _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 123456, BadgeNumber = null });
+                    _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<Models.CommonModels.CheckInRecord>())).Returns(Task.FromResult(successResponse));
+                    _mockCheckInTranslator.Setup(t => t.GetNewCheckInPartialVMAfterSuccess(It.IsAny<CheckInPartialViewModel>())).Returns(new CheckInPartialViewModel());
+
+                    // Fresh VM for each iteration - ensures training checks happen
+                    CheckInPartialViewModel vm = new CheckInPartialViewModel
+                    {
+                        overrideTraining = false,
+                        trainingConfirmation = false,
+                        CurrentUser = new User { BemsId = 2830715 },
+                        bemsId = 123456,
+                        personType = personType
+                    };
+
+                    var result = await _controller.CheckInUser(vm);
+                    var viewResult = (PartialViewResult)result;
+
+                    // Training validation happens, any 77517 valid, so direct check-in without popup
+                    Assert.AreEqual("Partials/CheckInPartial", viewResult.ViewName);
+                    Assert.AreEqual("Success", viewResult.ViewData["Status"]);
+                }
+            }
+
+            // Verify training service was called for each scenario (4 scenarios x 2 person types = 8)
+            _mockExternalService.Verify(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(8));
+            // Verify check-in happened 8 times
+            _mockCheckInService.Verify(s => s.PostCheckinAsync(It.IsAny<CheckInRecord>()), Times.Exactly(8));
+        }
+
+        // NEW: Proceed button scenarios for Boeing AE - All combinations in one method
+        [TestMethod]
+        public async Task Should_Show_ProceedButton_When_BoeingAE_Has_No_Valid_77517_Training()
+        {
+            // Test all 3 proceed button combinations
+            var trainingCombinations = new List<List<IMyLearningDataResponse>>
+            {
+                // Scenario 1: TR06005 valid, All 77517 invalid, 85914 valid
+                new List<IMyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = true, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = true, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = false, Name = "77517AE Training" },
+                    new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = false, Name = "77517PAE Training" },
+                    new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC Training" }
+                },
+                // Scenario 2: TR06005 invalid, All 77517 invalid, 85914 valid
+                new List<IMyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = false, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = true, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = false, Name = "77517AE Training" },
+                    new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = false, Name = "77517PAE Training" },
+                    new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC Training" }
+                },
+                // Scenario 3: TR06005 valid, All 77517 invalid, 85914 invalid
+                new List<IMyLearningDataResponse>
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = true, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = false, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = false, Name = "77517AE Training" },
+                    new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = false, Name = "77517PAE Training" },
+                    new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC Training" }
+                }
+            };
+
+            // Test both Boeing AE person types
+            var personTypes = new List<string> { "Home Team", "Traveller" };
+
+            foreach (var personType in personTypes)
+            {
+                foreach (var trainingData in trainingCombinations)
+                {
+                    TrainingInfo trainingInfo = new()
+                    {
+                        BemsId = 123456,
+                        MyLearningDataResponse = trainingData
+                    };
+
+                    _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+                    _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 123456, BadgeNumber = null });
+                    _mockUserService.Setup(s => s.GetUserByBemsidAsync(It.IsAny<int>())).ReturnsAsync(new User { DisplayName = "Test_User" });
+
+                    // Fresh VM for each iteration - ensures training checks happen
+                    CheckInPartialViewModel vm = new CheckInPartialViewModel
+                    {
+                        overrideTraining = false,
+                        trainingConfirmation = false,
+                        CurrentUser = new User { BemsId = 2830715 },
+                        bemsId = 123456,
+                        personType = personType
+                    };
+
+                    var result = await _controller.CheckInUser(vm);
+                    var viewResult = (PartialViewResult)result;
+                    var model = (CheckInPartialViewModel)viewResult.Model;
+
+                    // Training validation happens, no 77517 valid, so show proceed button popup
+                    Assert.AreEqual("Partials/TrainingStatusPartial", viewResult.ViewName);
+                    Assert.IsTrue(model.trainingConfirmation);
+                    Assert.IsFalse(model.overrideTraining);
+                }
+            }
+
+            // Verify training service was called for each scenario (3 scenarios x 2 person types = 6)
+            _mockExternalService.Verify(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(6));
+        }
+
+        // NEW: Test proceed button then check-in
+        [TestMethod]
+        public async Task Should_CheckIn_After_Clicking_Proceed_Button()
+        {
+            var successResponse = new HTTPResponseWrapper<Shield.Ui.App.Models.CommonModels.CheckInRecord>
+            {
+                Status = Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS,
+                Message = "Check In Successful"
+            };
+
+            TrainingInfo trainingInfo = new()
+            {
+                BemsId = 123456,
+                MyLearningDataResponse = new List<IMyLearningDataResponse>()
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = true, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = true, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = false, Name = "77517AE Training" },
+                    new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = false, Name = "77517PAE Training" },
+                    new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC Training" }
+                }
+            };
+
+            _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+            _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 123456, BadgeNumber = null });
+            _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<Models.CommonModels.CheckInRecord>())).Returns(Task.FromResult(successResponse));
+            _mockCheckInTranslator.Setup(t => t.GetNewCheckInPartialVMAfterSuccess(It.IsAny<CheckInPartialViewModel>())).Returns(new CheckInPartialViewModel());
+
+            // User clicks Proceed button - trainingConfirmation flag set to true
+            CheckInPartialViewModel vm = new CheckInPartialViewModel
+            {
+                overrideTraining = false,
+                trainingConfirmation = true,
+                CurrentUser = new User { BemsId = 2830715 },
+                bemsId = 123456,
+                personType = "Home Team"
+            };
+
+            var result = await _controller.CheckInUser(vm);
+            var viewResult = (PartialViewResult)result;
+
+            Assert.AreEqual("Partials/CheckInPartial", viewResult.ViewName);
+            Assert.AreEqual("Success", viewResult.ViewData["Status"]);
+            _mockCheckInService.Verify(s => s.PostCheckinAsync(It.IsAny<CheckInRecord>()), Times.Once);
+        }
+
+        // NEW: Test override button then check-in
+        [TestMethod]
+        public async Task Should_CheckIn_After_Clicking_Override_Button()
+        {
+            var successResponse = new HTTPResponseWrapper<Shield.Ui.App.Models.CommonModels.CheckInRecord>
+            {
+                Status = Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS,
+                Message = "Check In Successful"
+            };
+
+            TrainingInfo trainingInfo = new()
+            {
+                BemsId = 123456,
+                MyLearningDataResponse = new List<IMyLearningDataResponse>()
+                {
+                    new MyLearningDataResponse { CertCode = "TR06005", IsTrainingValid = false, Name = "TR06005 Training" },
+                    new MyLearningDataResponse { CertCode = "85914", IsTrainingValid = false, Name = "85914 Training" },
+                    new MyLearningDataResponse { CertCode = "77517AE", IsTrainingValid = false, Name = "77517AE Training" },
+                    new MyLearningDataResponse { CertCode = "77517PAE", IsTrainingValid = false, Name = "77517PAE Training" },
+                    new MyLearningDataResponse { CertCode = "77517GC", IsTrainingValid = false, Name = "77517GC Training" }
+                }
+            };
+
+            _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+            _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 123456, BadgeNumber = null });
+            _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<Models.CommonModels.CheckInRecord>())).Returns(Task.FromResult(successResponse));
+            _mockCheckInTranslator.Setup(t => t.GetNewCheckInPartialVMAfterSuccess(It.IsAny<CheckInPartialViewModel>())).Returns(new CheckInPartialViewModel());
+
+            // User clicks Override button - overrideTraining flag set to true
+            CheckInPartialViewModel vm = new CheckInPartialViewModel
+            {
+                overrideTraining = true,
+                trainingConfirmation = false,
+                CurrentUser = new User { BemsId = 2830715 },
+                bemsId = 123456,
+                personType = "Home Team"
+            };
+
+            var result = await _controller.CheckInUser(vm);
+            var viewResult = (PartialViewResult)result;
+
+            Assert.AreEqual("Partials/CheckInPartial", viewResult.ViewName);
+            Assert.AreEqual("Success", viewResult.ViewData["Status"]);
+            _mockCheckInService.Verify(s => s.PostCheckinAsync(It.IsAny<CheckInRecord>()), Times.Once);
+        }
+
+        // ============================================
+        // NEW TEST CASES FOR VISITOR SCENARIOS
+        // ============================================
+
+        // NEW: Visitor with valid training - direct check-in
+        [TestMethod]
+        public async Task Should_DirectlyCheckIn_For_Visitor_Using_BemsID_With_Valid_Training()
+        {
+            var successResponse = new HTTPResponseWrapper<Shield.Ui.App.Models.CommonModels.CheckInRecord>
+            {
+                Status = Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS,
+                Message = "Check In Successful"
+            };
+
+            TrainingInfo trainingInfo = new()
+            {
+                BemsId = 123456,
+                MyLearningDataResponse = new List<IMyLearningDataResponse>()
+                {
+                    new MyLearningDataResponse
+                    {
+                        CertCode = "77517X36106",
+                        IsTrainingValid = true,
+                        Name = "Visitor Training"
+                    }
+                }
+            };
+
+            _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+            _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 123456, BadgeNumber = "123456789" });
+            _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<Models.CommonModels.CheckInRecord>())).Returns(Task.FromResult(successResponse));
+            _mockCheckInTranslator.Setup(t => t.GetNewCheckInPartialVMAfterSuccess(It.IsAny<CheckInPartialViewModel>())).Returns(new CheckInPartialViewModel());
+
+            CheckInPartialViewModel vm = new CheckInPartialViewModel
+            {
+                overrideTraining = false,
+                CurrentUser = new User { BemsId = 2830715 },
+                bemsId = 123456,
+                personType = "Visitor"
+            };
+
+            var result = await _controller.CheckInUser(vm);
+            var viewResult = (PartialViewResult)result;
+
+            Assert.AreEqual("Partials/CheckInPartial", viewResult.ViewName);
+            Assert.AreEqual("Success", viewResult.ViewData["Status"]);
+            _mockCheckInService.Verify(s => s.PostCheckinAsync(It.IsAny<CheckInRecord>()), Times.Once);
+        }
+
+        // NEW: Visitor with invalid training - show override button
+        [TestMethod]
+        public async Task Should_Show_OverrideButton_For_Visitor_Using_BemsID_With_Invalid_Training()
+        {
+            TrainingInfo trainingInfo = new()
+            {
+                BemsId = 123456,
+                MyLearningDataResponse = new List<IMyLearningDataResponse>()
+                {
+                    new MyLearningDataResponse
+                    {
+                        CertCode = "77517X36106",
+                        IsTrainingValid = false,
+                        Name = "Visitor Training"
+                    }
+                }
+            };
+
+            _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+            _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 123456, BadgeNumber = "123456789" });
+            _mockUserService.Setup(s => s.GetUserByBemsidAsync(It.IsAny<int>())).ReturnsAsync(new User { DisplayName = "Visitor_User" });
+
+            CheckInPartialViewModel vm = new CheckInPartialViewModel
+            {
+                overrideTraining = false,
+                CurrentUser = new User { BemsId = 2830715 },
+                bemsId = 123456,
+                personType = "Visitor"
+            };
+
+            var result = await _controller.CheckInUser(vm);
+            var viewResult = (PartialViewResult)result;
+            var model = (CheckInPartialViewModel)viewResult.Model;
+
+            Assert.AreEqual("Partials/TrainingStatusPartial", viewResult.ViewName);
+            Assert.IsTrue(model.overrideTraining);
+            Assert.AreEqual("Visitor_User", model.recordDisplayName);
+        }
+
+        // NEW: Visitor override button then check-in
+        [TestMethod]
+        public async Task Should_CheckIn_After_Clicking_Override_Button_For_Visitor()
+        {
+            var successResponse = new HTTPResponseWrapper<Shield.Ui.App.Models.CommonModels.CheckInRecord>
+            {
+                Status = Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS,
+                Message = "Check In Successful"
+            };
+
+            TrainingInfo trainingInfo = new()
+            {
+                BemsId = 123456,
+                MyLearningDataResponse = new List<IMyLearningDataResponse>()
+                {
+                    new MyLearningDataResponse
+                    {
+                        CertCode = "77517X36106",
+                        IsTrainingValid = false,
+                        Name = "Visitor Training"
+                    }
+                }
+            };
+
+            _mockExternalService.Setup(s => s.GetMyLearningDataAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(trainingInfo);
+            _mockCheckInTranslator.Setup(s => s.GetCheckInRecordFromViewModel(It.IsAny<CheckInPartialViewModel>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<bool>())).Returns(new CheckInRecord() { BemsId = 123456, BadgeNumber = "123456789" });
+            _mockCheckInService.Setup(x => x.PostCheckinAsync(It.IsAny<Models.CommonModels.CheckInRecord>())).Returns(Task.FromResult(successResponse));
+            _mockCheckInTranslator.Setup(t => t.GetNewCheckInPartialVMAfterSuccess(It.IsAny<CheckInPartialViewModel>())).Returns(new CheckInPartialViewModel());
+
+            // User clicks Override button for visitor
+            CheckInPartialViewModel vm = new CheckInPartialViewModel
+            {
+                overrideTraining = true,
+                CurrentUser = new User { BemsId = 2830715 },
+                bemsId = 123456,
+                personType = "Visitor"
+            };
+
+            var result = await _controller.CheckInUser(vm);
+            var viewResult = (PartialViewResult)result;
+
+            Assert.AreEqual("Partials/CheckInPartial", viewResult.ViewName);
+            Assert.AreEqual("Success", viewResult.ViewData["Status"]);
+            _mockCheckInService.Verify(s => s.PostCheckinAsync(It.IsAny<CheckInRecord>()), Times.Once);
+        }
