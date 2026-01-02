@@ -10,12 +10,11 @@
     <h3 style="border-bottom:2px solid #eceeef; padding-bottom: 0.75rem; margin-bottom: 2.25rem;">Training Status</h3>
     @if (Model.UserTrainingData != null && Model.UserTrainingData.Count != 0)
     {
-        @* @await Html.PartialAsync("Partials/TrainingChecksPartial", Model) *@
         @await Html.PartialAsync("../Shared/Partials/TrainingChecksPartial", Model.UserTrainingData)
 
         if (Model.overrideTraining)
         {
-            <p>User <strong>@Model.recordDisplayName</strong> has not completed the required training
+            <p>User <strong>@Model.recordDisplayName</strong> has not completed the required trainings
                 <span>@string.Join(", ", Model.UserTrainingData.Select(x => x.CertCode))</span>.
             </p>
             <p>An override is required to check in this user.</p>
@@ -33,7 +32,13 @@
         else
         {
             <p>User <strong>@Model.recordDisplayName</strong> has not completed the required LOTO training
-                (@TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL) and <strong>not authorized to perform LOTO work</strong>
+                (
+                @foreach (var id in Model.UserTrainingData.Where(u => u.CertCode != null &&
+                        u.CertCode.StartsWith("77517")).Select(u => u.CertCode))
+                {
+                    <span>@id</span>
+                }
+                ) ,and is<strong>not authorized to perform LOTO work.</strong>
             </p>
             <br />
             <hr>
@@ -49,9 +54,8 @@
     }
     else
     {
-        <p>Unable to determine <strong>@Model.recordDisplayName</strong> has completed required training
-            (@TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_CONTROL or
-            @TrainingCourses.AIRCRAFT_HAZARDOUS_ENERGY_AWARENESS_TRAINING_FOR_AFFECTED_PERSONS).</p>
+        <p>Unable to determine <strong>@Model.recordDisplayName</strong> has completed required training ( LOTO Training or
+            Awareness Training ).</p>
         <p>We apologize for the inconvenience, please select <b>'Accept'</b> if you have verified with
             @Model.recordDisplayName and wish to check in.</p>
         <br />
