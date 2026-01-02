@@ -1603,13 +1603,6 @@ public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
                             return PartialView("Partials/CheckInPartial", vm);
                         }
 
-                        // Check if any training is incomplete
-                        // bool hasIncompleteTraining = trainingInfo.MyLearningDataResponse.Any(x => !x.IsTrainingValid);
-                        //bool hasAny77517 = trainingInfo?.MyLearningDataResponse?.Any(x => !string.IsNullOrEmpty(x.CertCode) && x.CertCode.Trim().StartsWith("77517", StringComparison.Ordinal) && x.IsTrainingValid) ?? false;
-                        // if we need anyone from 77517 then use this above condition and remove below one
-                        // bool hasValid77517 = trainingInfo?.MyLearningDataResponse?.Any(x => x.CertCode != null
-                        //                      && x.CertCode.Equals("77517", StringComparison.Ordinal) && x.IsTrainingValid) ?? false;
-
                         bool hasIncompleteTraining = trainingInfo.MyLearningDataResponse.Any(x => !x.IsTrainingValid);
                         bool allTrainingsIncomplete = trainingInfo.MyLearningDataResponse.All(x => !x.IsTrainingValid);
                         bool any77517Valid = trainingInfo.MyLearningDataResponse.Any(x =>
@@ -1622,17 +1615,18 @@ public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
                         {
                             if (allTrainingsIncomplete)
                             {
+                                // All trainings incomplete then show override button popup
                                 vm.overrideTraining = true;
                                 Console.WriteLine("Override training popup is shown");
                             }
                             else if (any77517Valid)
                             {
-                                // At least one 77517 valid — direct check-in.
+                                // Any 77517 valid then direct check-in.
                                 Console.WriteLine("77517 valid — direct check-in");
                             }
                             else
                             {
-                                // Some trainings incomplete, none of the 77517 valid => show proceed popup.
+                                // Some trainings incomplete, none of the 77517 valid then show proceed button popup.
                                 vm.trainingConfirmation = true;
                                 Console.WriteLine("Training confirmation with proceed button popup is shown");
                             }
@@ -1648,33 +1642,33 @@ public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
                                 return PartialView("Partials/TrainingStatusPartial", vm);
                             }
                         }
-                        response = await _checkInService.PostCheckinAsync(rec);
+                    }
+                    response = await _checkInService.PostCheckinAsync(rec);
 
-                        if (response == null)
-                        {
-                            ViewBag.Status = "Failed";
-                            ViewBag.Message = "Unable to reach Check In Service, please try again.";
-                            return PartialView("Partials/CheckInPartial", vm);
-                        }
-                        else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS))
-                        {
-                            ViewBag.Status = "Success";
-                            ViewBag.Message = response.Message;
-                            CheckInPartialViewModel newVM = _checkInTranslator.GetNewCheckInPartialVMAfterSuccess(vm);
-                            return PartialView("Partials/CheckInPartial", newVM);
-                        }
-                        else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.NOT_MODIFIED))
-                        {
-                            vm.checkOutNeededFlag = true;
-                            vm.bemsId = response.Data.BemsId;
-                            ViewData["ResponseMessage"] = response.Message;
-                            return PartialView("Partials/CheckOutCheckInPartial", vm);
-                        }
-                        else
-                        {
-                            _toastNotification.AddErrorToastMessage(response.Message);
-                            return PartialView("Partials/CheckInPartial", vm);
-                        }
+                    if (response == null)
+                    {
+                        ViewBag.Status = "Failed";
+                        ViewBag.Message = "Unable to reach Check In Service, please try again.";
+                        return PartialView("Partials/CheckInPartial", vm);
+                    }
+                    else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS))
+                    {
+                        ViewBag.Status = "Success";
+                        ViewBag.Message = response.Message;
+                        CheckInPartialViewModel newVM = _checkInTranslator.GetNewCheckInPartialVMAfterSuccess(vm);
+                        return PartialView("Partials/CheckInPartial", newVM);
+                    }
+                    else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.NOT_MODIFIED))
+                    {
+                        vm.checkOutNeededFlag = true;
+                        vm.bemsId = response.Data.BemsId;
+                        ViewData["ResponseMessage"] = response.Message;
+                        return PartialView("Partials/CheckOutCheckInPartial", vm);
+                    }
+                    else
+                    {
+                        _toastNotification.AddErrorToastMessage(response.Message);
+                        return PartialView("Partials/CheckInPartial", vm);
                     }
                 }
             }
@@ -1685,3 +1679,5 @@ public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
 
             return PartialView("Partials/CheckInPartial", vm);
         }
+
+
