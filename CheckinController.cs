@@ -1517,3 +1517,171 @@ namespace Shield.Ui.App.Controllers
         #endregion Helping Methods
     }
 }
+
+
+
+
+
+
+
+public async Task<ActionResult> CheckInUser(CheckInPartialViewModel vm)
+        {
+            try
+            {
+                vm.site = HttpUtility.HtmlDecode(vm.site);
+                ViewData["UserType"] = vm.personType;
+                if (vm.WorkAreaIdString != null)
+                {
+                    var idList = vm.WorkAreaIdString.Split(',').ToList();
+                    vm.workArea = idList.Select(int.Parse).ToList();
+                }
+                vm.WorkAreas = await _airplaneDataService.GetActiveWorkAreasAsync(vm.site, vm.program);
+
+                if (ModelState.IsValid)
+                {
+                    vm.CurrentUser = GetCurrentUserFromViewModel(vm);
+                    // If no one is logged in, BC should scan Badge or Enter the correct PIN for check-in to continue
+                    if (vm.CurrentUser == null || vm.CurrentUser.BemsId == 0)
+                    {
+                        string badge = vm.ConfirmingBCBadge;
+                        string pin = vm.ConfirmingCCPin;
+
+                        if (badge == null && pin == null)
+                        {
+                            _toastNotification.AddErrorToastMessage("Person Not Checked In. Scan The Correct Badge or Enter the correct PIN of This Line's CC.");
+                            return PartialView("Partials/CheckInPartial", vm);
+                        }
+
+                        HTTPResponseWrapper<bool> isValidResponse = badge != null ? await _externalService.IsValidBadge(vm.assignedBCBems, badge) : await _userService.IsValidPin(vm.assignedBCBems, pin);
+
+                        if (!isValidResponse.Data)
+                        {
+                            _toastNotification.AddErrorToastMessage(isValidResponse.Message);
+                            return PartialView("Partials/CheckInPartial", vm);
+                        }
+                    }
+
+                    CheckInRecord rec = _checkInTranslator.GetCheckInRecordFromViewModel(vm, DateTime.UtcNow, "Check In", false);
+
+                    HTTPResponseWrapper<CheckInRecord> response = new HTTPResponseWrapper<CheckInRecord>();
+                    if (vm.checkOutNeededFlag)
+                    {
+                        var checkOutResponse = await _checkInService.PostCheckOutUserByBems(vm.bemsId);
+                        if (checkOutResponse.Status == Shield.Common.Constants.ShieldHttpWrapper.Status.FAILED)
+                        {
+                            return PartialView("../Shared/Error/ErrorPartial", checkOutResponse.Message);
+                        }
+
+                        vm.checkOutNeededFlag = false;
+                    }
+
+                    bool isBoeingAE = vm.personType != null && (vm.personType.Equals("Home Team", StringComparison.OrdinalIgnoreCase) || vm.personType.Equals("Traveller", StringComparison.OrdinalIgnoreCase));
+                    bool isVisitor = vm.personType != null && vm.personType.Equals("Visitor", StringComparison.OrdinalIgnoreCase);
+
+                    bool visitorUsingName = isVisitor && (rec.BemsId == 0 || string.IsNullOrEmpty(rec.BadgeNumber)) && !string.IsNullOrEmpty(rec.Name);
+                    bool visitorUsingBemsId = isVisitor && rec.BemsId != 0;
+                    bool doTrainingChecks = false;
+
+                    if (visitorUsingName)
+                    {
+                        doTrainingChecks = false;
+                    }
+                    else
+                    {
+                        doTrainingChecks = true;
+                    }
+                    //Getting training data when the CC didn't override or proceeded after varifying trianing data
+                    if (!vm.overrideTraining && !vm.trainingConfirmation && doTrainingChecks)
+                    {
+                        string trainingActions = (isVisitor && visitorUsingBemsId) ? Shield.Common.Constants.ShieldTasksName.CHECKIN_NON_BOEING : Shield.Common.Constants.ShieldTasksName.CHECKIN_BOEING;
+                        TrainingInfo trainingInfo = await _externalService.GetMyLearningDataAsync(rec.BemsId, rec.BadgeNumber, trainingActions);
+
+                        //show error message when there is no BemsId for the given BadgeData
+                        if (trainingInfo?.BemsId == 0 && rec.Name == null)
+                        {
+                            _toastNotification.AddErrorToastMessage("Unable to Find Badge Data For This Badge.Please Try Using BEMSID.");
+                            return PartialView("Partials/CheckInPartial", vm);
+                        }
+
+                        // Check if any training is incomplete
+                        // bool hasIncompleteTraining = trainingInfo.MyLearningDataResponse.Any(x => !x.IsTrainingValid);
+                        //bool hasAny77517 = trainingInfo?.MyLearningDataResponse?.Any(x => !string.IsNullOrEmpty(x.CertCode) && x.CertCode.Trim().StartsWith("77517", StringComparison.Ordinal) && x.IsTrainingValid) ?? false;
+                        // if we need anyone from 77517 then use this above condition and remove below one
+                        // bool hasValid77517 = trainingInfo?.MyLearningDataResponse?.Any(x => x.CertCode != null
+                        //                      && x.CertCode.Equals("77517", StringComparison.Ordinal) && x.IsTrainingValid) ?? false;
+
+                        bool hasIncompleteTraining = trainingInfo.MyLearningDataResponse.Any(x => !x.IsTrainingValid);
+                        bool allTrainingsIncomplete = trainingInfo.MyLearningDataResponse.All(x => !x.IsTrainingValid);
+                        bool any77517Valid = trainingInfo.MyLearningDataResponse.Any(x =>
+                            x.CertCode != null &&
+                            x.CertCode.Trim().StartsWith("77517", StringComparison.Ordinal) &&
+                            x.IsTrainingValid);
+
+
+                        if (hasIncompleteTraining)
+                        {
+                            if (allTrainingsIncomplete)
+                            {
+                                vm.overrideTraining = true;
+                                Console.WriteLine("Override training popup is shown");
+                            }
+                            else if (any77517Valid)
+                            {
+                                // At least one 77517 valid — direct check-in.
+                                Console.WriteLine("77517 valid — direct check-in");
+                            }
+                            else
+                            {
+                                // Some trainings incomplete, none of the 77517 valid => show proceed popup.
+                                vm.trainingConfirmation = true;
+                                Console.WriteLine("Training confirmation with proceed button popup is shown");
+                            }
+
+                            if (vm.overrideTraining || vm.trainingConfirmation)
+                            {
+                                User user = trainingInfo.BemsId != 0 ? await _userService.GetUserByBemsidAsync(trainingInfo.BemsId) : new Models.CommonModels.User();
+                                vm.UserTrainingData = trainingInfo.MyLearningDataResponse
+                                .OrderBy(t => System.Text.RegularExpressions.Regex.Match(t.CertCode, @"^\d+").Value)
+                                .ThenBy(t => t.CertCode)
+                                .ToList();
+                                vm.recordDisplayName = trainingInfo.BemsId != 0 ? user.DisplayName : rec.Name;
+                                return PartialView("Partials/TrainingStatusPartial", vm);
+                            }
+                        }
+                        response = await _checkInService.PostCheckinAsync(rec);
+
+                        if (response == null)
+                        {
+                            ViewBag.Status = "Failed";
+                            ViewBag.Message = "Unable to reach Check In Service, please try again.";
+                            return PartialView("Partials/CheckInPartial", vm);
+                        }
+                        else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS))
+                        {
+                            ViewBag.Status = "Success";
+                            ViewBag.Message = response.Message;
+                            CheckInPartialViewModel newVM = _checkInTranslator.GetNewCheckInPartialVMAfterSuccess(vm);
+                            return PartialView("Partials/CheckInPartial", newVM);
+                        }
+                        else if (response.Status.Equals(Shield.Common.Constants.ShieldHttpWrapper.Status.NOT_MODIFIED))
+                        {
+                            vm.checkOutNeededFlag = true;
+                            vm.bemsId = response.Data.BemsId;
+                            ViewData["ResponseMessage"] = response.Message;
+                            return PartialView("Partials/CheckOutCheckInPartial", vm);
+                        }
+                        else
+                        {
+                            _toastNotification.AddErrorToastMessage(response.Message);
+                            return PartialView("Partials/CheckInPartial", vm);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex);
+            }
+
+            return PartialView("Partials/CheckInPartial", vm);
+        }
