@@ -81,3 +81,32 @@
             Assert.AreEqual(1, links.Length);
             Assert.AreEqual($"/Loto/LotoDetail?id={lotoId}", links[0].GetAttribute("href"));
         }
+
+
+
+[HttpPost]
+        [Authorize(Policy = Constants.AUTHENTICATED_USER)]
+        public async Task<ActionResult> GetAEWarningPartial(int currentLotoId, int lotoId, int bemsId, string aeName)
+        {
+            var lotoDetail = await _lotoService.GetLotoDetail(lotoId);
+            return PartialView("Partials/AEWarningPartial", new LotoAEManagementViewModel
+            {
+                LotoId = currentLotoId,
+                BemsId = bemsId,
+                AEName = aeName,
+                Header = new AircraftHeaderViewModel
+                {
+                    Aircraft = new Aircraft
+                    {
+                        Site = lotoDetail.Site
+                    }
+                },
+                Loto = new LotoViewModel
+                {
+                    Id = lotoId,
+                    Program = lotoDetail.Model,
+                    LineNumber = lotoDetail.LineNumber,
+                    WorkPackage = lotoDetail.WorkPackage
+               },
+            });
+        }
