@@ -678,7 +678,7 @@ namespace Shield.Ui.App.Tests
             _mockClientService.Setup(s => s.GetClient().GetAsync(It.IsAny<Uri>())).ReturnsAsync(httpResponse);
 
             // Act
-            TrainingInfo result = await _externalService.GetMyLearningDataAsync(BemsId,null, "Boeing Checkin");
+            TrainingInfo result = await _externalService.GetMyLearningDataAsync(BemsId,null, courseCodeList);
 
             // Assert
             Assert.IsNotNull(result);
@@ -729,7 +729,7 @@ namespace Shield.Ui.App.Tests
             _mockClientService.Setup(s => s.GetClient().GetAsync(It.IsAny<Uri>())).ReturnsAsync(httpResponse);
 
             // Act
-            TrainingInfo result = await _externalService.GetMyLearningDataAsync(BemsId, null, "Boeing Checkin");
+            TrainingInfo result = await _externalService.GetMyLearningDataAsync(BemsId, null, courseCodeList);
 
             // Assert
             Assert.IsNotNull(result);
@@ -781,7 +781,7 @@ namespace Shield.Ui.App.Tests
             _mockClientService.Setup(s => s.GetClient().GetAsync(It.IsAny<Uri>())).ReturnsAsync(httpResponse);
 
             // Act
-            TrainingInfo result = await _externalService.GetMyLearningDataAsync(BemsId, null, "Boeing Checkin");
+            TrainingInfo result = await _externalService.GetMyLearningDataAsync(BemsId, null, courseCodeList);
 
             // Assert
             Assert.IsNotNull(result);
@@ -889,7 +889,7 @@ namespace Shield.Ui.App.Tests
             _mockClientService.Setup(s => s.GetClient().GetAsync(uri)).ReturnsAsync(httpResponse);
             _mockClientService.Setup(s => s.GetClient().GetAsync(new Uri("https://test/test/badgedata/123456789"))).ReturnsAsync(externalResponseMessage);
             // Act
-            TrainingInfo result = await _externalService.GetMyLearningDataAsync(0, BadgeNumber, "Boeing Checkin");
+            TrainingInfo result = await _externalService.GetMyLearningDataAsync(0, BadgeNumber, courseCodeList);
 
             // Assert
             Assert.IsNotNull(result);
@@ -900,5 +900,4 @@ namespace Shield.Ui.App.Tests
         }
     }
 }
-
 
