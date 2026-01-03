@@ -1,0 +1,338 @@
+@model Shield.Ui.App.ViewModels.CheckInPartialViewModel
+@using Ganss.Xss
+@{
+    string _personType = "";
+    var sanitizer = new HtmlSanitizer();
+
+    if (Model.personType == null)
+    {
+        _personType = "Home Team";
+    }
+    else
+    {
+        _personType = Model.personType;
+    }
+
+    bool showBadgeInputField = Model.CurrentUser == null || Model.CurrentUser.BemsId == 0 ||
+        Model.CurrentUser.BemsId != Model.assignedBCBems;
+}
+<div style="margin-top:10px">
+    <div>
+        <ul class="nav" style="margin-bottom:3px">
+            <li class="checkin-tab col-4" id="hometeam-label"><a data-toggle="tab" data-target=".Home-Team-Tab" class="nav-link checkin-tab-link @(_personType == "Home Team" ? "active" : "")" data_id="3" href="#Home-Team-Tab" id="homeTeamOption">Home Team</a></li>
+            <li class="checkin-tab col-4" id="traveler-label"><a data-toggle="tab" data-target=".Traveler-Tab" data_id="1" class="nav-link checkin-tab-link @(_personType == "Traveler" ? "active" : "")" href="#Traveler-Tab" id="travelerOption">Traveler</a></li>
+            <li class="checkin-tab col-4" id="visitor-label"><a data-toggle="tab" data-target=".Visitor-Tab" class="nav-link checkin-tab-link @(_personType == "Visitor" ? "active" : "")" data_id="2" href="#Visitor-Tab" id="visitorOption">Visitor</a></li>
+        </ul>
+    </div>
+    <input type="hidden" name="site" class="form-control" asp-for="@Model.site">
+    <input type="hidden" name="program" class="form-control" asp-for="@Model.program">
+    <input type="hidden" name="lineNumber" class="form-control" asp-for="@Model.lineNumber">
+    <input type="hidden" name="assignedBCBems" class="form-control" asp-for="@Model.assignedBCBems" />
+    <input type="hidden" id="assignedCCPin" name="assignedCCPin" class="form-control" asp-for="@Model.assignedCCPin" value="@sanitizer.Sanitize(Model.assignedCCPin)" />
+    <input type="hidden" id="personType" name="personType" class="form-control" value="@sanitizer.Sanitize(Model.personType)" asp-for="@Model.personType" />
+    <div class="card card-with-tab">
+        <div class="card-body checkin-card-body">
+            <div class="tab-content checkin-tab-content">
+                <!-- Traveler-Tab -->
+                <div id="Traveler-Tab" class="tab-pane fade Traveler-Tab @(_personType == "Traveler" ? "in show active" : "")">
+                    <div class="row">
+                        @*@if (Model.CurrentUser.BemsId != Model.assignedBCBems)
+                            {
+                                <div class="col-md-12" style="color:white; background-color: #fb3; padding-top: .5rem; padding-bottom: .5rem; margin-bottom: .5rem">
+                                    <div>
+                                        This line's BC is not logged in. In order to check in a person, please have the BC log in or scan their badge below.
+                                    </div>
+                                </div>
+                            }*@
+                        <div class="col-md-12">
+                            <div class="md-form">
+                                <input type="password" id="traveler-name" class="form-control traveler-fields badgeFieldCheckIn" asp-for="@Model.nameOrBems" value="@sanitizer.Sanitize(Model.nameOrBems)" oninput="validateCheckInButton()">
+                                <span asp-validation-for="@Model.nameOrBems" class="text-danger"></span>
+                                <label id="traveler-nameOrBems-label" for="traveler-name" class="@(Model.nameOrBems != null ? "active" : "")">
+                                    Scan Badge or Type BEMSID&nbsp;*
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="md-form">
+                                <input type="text" id="traveler-job" class="form-control traveler-fields" asp-for="@Model.jobId" value="@sanitizer.Sanitize(Model.jobId)" oninput="validateCheckInButton()">
+                                <span asp-validation-for="@Model.jobId" class="text-danger"></span>
+                                <label id="traveler-job-label" for="traveler-job" class="@(Model.jobId != null ? "active" : "")">
+                                    Job Number&nbsp;*
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Visitor-Tab -->
+                <div id="Visitor-Tab" class="tab-pane fade Visitor-Tab @(_personType == "Visitor" ? "in show active" : "")">
+                    <div class="row" style="padding-bottom: 20px">
+                        <div class="col-md-12">
+                            <div class="md-form" style="padding-bottom: 0.5rem;">
+                                <label for="name-toggle-checkbox">
+                                    No Badge?  Check to enter name:
+                                    <input type="checkbox" name="checkbox" id="name-toggle-checkbox" asp-for="@Model.usingVisitorName">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="visitor-badge-field">
+                        <div class="col-md-12">
+                            <div class="md-form">
+                                <input type="password" id="visitor-badge" class="form-control badgeFieldCheckIn" asp-for="@Model.nameOrBems" oninput="validateCheckInButton()">
+                                <span asp-validation-for="@Model.nameOrBems" class="text-danger"></span>
+                                <label id="visitor-badge-label" for="visitor-badge" class="@(Model.nameOrBems != null ? "active" : "")">
+                                    Scan Badge or Type BEMSID&nbsp;*
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="visitor-name-field" style="display:none">
+                        <div class="col-md-12">
+                            <div class="md-form">
+                                <input type="text" id="visitor-name" class="form-control" asp-for="@Model.nameOrBems" disabled="disabled" oninput="validateCheckInButton()">
+                                <span asp-validation-for="@Model.nameOrBems" class="text-danger"></span>
+                                <label id="visitor-name-label" for="visitor-name" class="@(Model.nameOrBems != null ? "active" : "")">
+                                    Name&nbsp;*
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 col-lg-12 ">
+                            <div class="md-form"><label class="">Reason for Visit - Optional</label></div>
+                            <div class="form-group">
+                                <div class="fg-line">
+                                    <div class="select" onchange="validateCheckInButton()">
+                                        <select id="reason-to-visit" class="custom-select-shield w-100" asp-for="@Model.reason" onchange="validateCheckInButton()">
+                                            <option value="1" selected></option>
+                                            <option value="Work">Work</option>
+                                            <option value="Inspection">Inspection</option>
+                                            <option value="Tour">Tour</option>
+                                            <option value="Production Support">Production Support</option>
+                                            <option value="Presentation">Presentation</option>
+                                        </select>
+                                        <span asp-validation-for="@Model.reason" class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="md-form">
+                                <input type="text" id="visitor-job" class="form-control" asp-for="@Model.jobId" value="@sanitizer.Sanitize(Model.jobId)">
+                                <label id="visitor-job-label" for="visitor-job" class="@(Model.jobId != null ? "active" : "")">Job Number - Optional</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Home-Team-Tab -->
+                <div id="Home-Team-Tab" class="tab-pane fade Home-Team-Tab @(_personType == "Home Team" ? "in show active" : "")">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="md-form">
+                                <input type="password" id="home-name" class="form-control badgeFieldCheckIn" asp-for="@Model.nameOrBems" value="@sanitizer.Sanitize(Model.nameOrBems)" active oninput="validateCheckInButton()">
+                                <span asp-validation-for="@Model.nameOrBems" class="text-danger"></span>
+                                <label id="home-nameOrBems-label" for="home-name" class="@(Model.nameOrBems != null ? "active" : "")">Scan Badge or Type BEMSID&nbsp;*</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="md-form">
+                                <input type="text" id="home-job" class="form-control" asp-for="@Model.jobId" value="@sanitizer.Sanitize(Model.jobId)">
+                                <label id="home-job-label" for="home-job" class="@(Model.jobId != null ? "active" : "")">Job Number - Optional</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 col-lg-12 ">
+                        <div class="md-form"><label class="">Work/Visit Area&nbsp;*</label></div>
+                        <div class="form-group ">
+                            <div class="fg-line">
+                                <div class="md-form dropdown-check-list w-100" id="scope-work-area-div">
+                                    <span class="custom-select-shield w-100 form-control" id="work-area-span"></span>
+                                    <div class="work-areas-select w-100">                                       
+                                        <div class="search-content w-100">
+                                            <input type="text" id="work-area-search" class="work-area-search" oninput="FilterWorkArea();" placeholder="Search..."/>
+                                            <button type="button" id="clear-work-area" class="clear-search-btn collapsible-body" onclick="clearWorkAreaSearch();">x</button>
+                                        </div>                                      
+                                        <div class="work-area-container">
+                                        @foreach(var workArea in Model.WorkAreas.OrderBy(w => w.Area).ToList())
+                                        {
+                                            @if(workArea.Area != null)
+                                            {                                                                                                   
+                                                <label for="work-area-@workArea.Area" class="work-area-label w-100">
+                                                    <input type="checkbox" id="work-area-@workArea.Area" value="@workArea.Id" class="work-area" name="@workArea.Area" onchange="validateCheckInButton(); checkboxSelectionLimit(this); showSelectedWorkAreas();" />
+                                                        @workArea.Area
+                                                    <br />                                                                                             
+                                                </label>    
+                                            }                             
+                                        }
+                                        </div>
+                                    </div>                               
+                                </div>
+                            </div>
+                        </div>
+                        <span asp-validation-for="@Model.workArea" class="text-danger"></span>
+                    </div>
+                </div>
+                @if (showBadgeInputField)
+                {
+                    <div class="row" id="bc-badge-field">
+                        <div>
+                            <label class="ccCredentialsLabel"><input name="ccCreds" value="cc-badge-input" onchange="toggleCCDetailsForCheckIn($(this))" checked="checked" id="cc-badge-radio" type="radio"> Use CC's Badge </label> 
+                            &nbsp;
+                            <label class="ccCredentialsLabel"><input name="ccCreds" value="cc-pin-input" onchange="toggleCCDetailsForCheckIn($(this))" id="cc-pin-radio" type="radio"> Use CC's PIN </label>
+                        </div>
+                        <br>
+                        <div class="col-md-12 ccCreds" id="cc-badge-input">
+                            <div class="md-form">
+                                <input type="password" id="bc-badge" class="form-control badgeFieldCheckIn" asp-for="@Model.ConfirmingBCBadge" oninput="validateCheckInButton()">
+                                <span asp-validation-for="@Model.ConfirmingBCBadge" class="text-danger"></span>
+                                <label id="bc-badge-label" for="bc-badge" class="@(Model.nameOrBems != null ? "active" : "")">
+                                    CC Scan Badge&nbsp;*
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 ccCreds" hidden id="cc-pin-input">
+                            <div class="md-form">
+                                <input type="password" maxlength="4" id="cc-pin" class="form-control badgeFieldCheckIn" asp-for="@Model.ConfirmingCCPin" oninput="validateCheckInButton()">
+                                <span asp-validation-for="@Model.ConfirmingCCPin" class="text-danger"></span>
+                                <label id="bc-badge-label" for="cc-pin" class="@(Model.nameOrBems != null ? "active" : "")">
+                                    CC Enter PIN&nbsp;*
+                                </label>
+                                <span class="text-danger">
+                                    PIN to only be used by Check in Coordinators (CC).
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                <div class="text-center">
+                    <button type="button" onclick="ShowConfirmIdentity()" id="check-in-btn" disabled class="btn btn-primary btn-rounded" style="width:70%;margin:0;font-size:1rem"><i class="fa fa-check-circle prefix right-space-xsm"></i>Check In to @("LN" + Model.lineNumber)</button>
+                </div>
+              
+                
+            </div>
+        </div>
+    </div>
+</div>
+@if ("Success".Equals(ViewBag.Status))
+{
+    <script type="text/javascript">
+        toastr["success"]("@ViewBag.Message", "Check-In Successful", TOAST_OPTIONS_SHORT_TIMEOUT);
+
+            $("#traveler-name").val("");
+            $('#visitor-name').val("");
+            $("#work-areas-select option").each(function () { this.selected = false; });
+            $("#reason-to-visit option").each(function () { this.selected = false; });
+
+            $("#work-areas-select option[value='']").prop("selected", "selected");
+            $("#reason-to-visit option[value='']").prop("selected", "selected");
+
+    </script>
+}
+else if ("Failed".Equals(ViewBag.Status))
+{
+    <script type="text/javascript">
+        toastr["error"]("@ViewBag.Message", "Error", TOAST_OPTIONS)
+    </script>
+}
+<script type="text/javascript">
+    if ($('#name-toggle-checkbox').is(':checked')) {
+        $('#visitor-badge-field').toggle();
+        $('#visitor-badge').val('');
+        $('#visitor-badge-label').prop('active', false);
+        $('#visitor-badge').prop('disabled', function (_, val) { return !val });
+
+        $('#visitor-name').prop('disabled', false);
+        $('#visitor-name-field').toggle();
+    }
+
+    $('#name-toggle-checkbox').change(function () {
+        $('#visitor-badge-field').toggle();
+        $('#visitor-badge').val('');
+        $('#visitor-badge-label').prop('active', false);
+        $('#visitor-badge').prop('disabled', function (_, val) { return !val });
+
+        $('#visitor-name').val('');
+        $('#visitor-name').prop('disabled', function (_, val) { return !val });
+        $('#visitor-name-field').toggle();
+        $('#visitor-name').focus();
+        $('#visitor-badge').focus();
+    });
+
+    /**
+    *   Click event handlers for: Traveler, Visitor, Home Team Tabs
+    **/
+    $('#travelerOption').on("click", function () {
+        focusTraveler();
+        validateCheckInButton();
+    });
+
+    $('#visitorOption').on("click", function () {
+        focusVisitor();
+        validateCheckInButton();
+    });
+
+    $('#homeTeamOption').on("click", function () {
+        focusHomeTeam();
+        validateCheckInButton();
+    });
+
+    $(document).ready(function () {
+        var checkList = $('#scope-work-area-div');
+        var searchBar = $('#work-area-search');
+        //to show the drop-down list when clicked
+        $('.custom-select-shield', checkList).eq(0).click(function (event) {
+            if (checkList.hasClass('visible')) {
+                checkList.removeClass('visible');
+            }
+            else {
+                checkList.addClass('visible');
+                searchBar.val('');
+                searchBar.focus();
+                $(".work-area-container").scrollTop(0);
+                showAllWorkAreas();
+                $('#clear-work-area').hide();
+                clearSearchHighlight('.work-areas-select');
+            }
+        });
+
+        $(document).click(function (event) {
+            var clickInside = $(checkList).has(event.target).length > 0;
+            if (!clickInside) {
+                checkList.removeClass('visible');
+            }
+        });
+    });
+</script>
+@*/* Enable the tabs for initial tab */*@
+@if (_personType == "Traveler")
+{
+
+    <script type="text/javascript">
+        focusTraveler();
+    </script>
+
+}
+else if (_personType == "Visitor")
+{
+    <script type="text/javascript">
+        focusVisitor();
+    </script>
+
+}
+else if (_personType == "Home Team")
+{
+
+    <script type="text/javascript">
+        focusHomeTeam();
+    </script>
+}
