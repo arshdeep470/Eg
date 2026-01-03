@@ -174,8 +174,8 @@ using System.Threading.Tasks;
 namespace Shield.Ui.App.Services
 {
     using Shield.Common.Models.MyLearning;
-    using Shield.Common.Models.MyLearning.Interfaces;
     using System.Collections.Generic;
+    using System.Text;
 
     public class ExternalService
     {
@@ -255,7 +255,7 @@ namespace Shield.Ui.App.Services
             }
         }
 
-        public virtual async Task<TrainingInfo> GetMyLearningDataAsync(int bemsId, string badgeNumber,string shieldActionName)
+        public virtual async Task<TrainingInfo> GetMyLearningDataAsync(int bemsId, string badgeNumber, List<string> courseCodeList)
         {
             TrainingInfo trainingInfo = new();
             try
@@ -267,20 +267,19 @@ namespace Shield.Ui.App.Services
                     if (bemsResponse.Status == Shield.Common.Constants.ShieldHttpWrapper.Status.SUCCESS && bemsResponse is not null && bemsResponse.Data is not 0)
                     {
                         trainingInfo.BemsId = bemsResponse.Data;
-                        bemsId = bemsResponse.Data;
                     }
                 }
                 else
                 {
                     trainingInfo.BemsId = bemsId;
                 }
-
-                string path = EnvironmentHelper.ExternalServiceAddress + $"mylearningdata/GetMyLearningData?bemsId={trainingInfo.BemsId}&shieldActionName={shieldActionName}";
+                StringBuilder trainingSB = new StringBuilder();
+                courseCodeList.ForEach(trainingId => trainingSB.Append("&trainingId=" + trainingId));
+                string path = EnvironmentHelper.ExternalServiceAddress + $"mylearningdata/GetMyLearningData?bemsId={trainingInfo.BemsId}{trainingSB}";
 
                 Uri uriPath = new Uri(path);
 
                 HttpResponseMessage res = await _clientService.GetClient().GetAsync(uriPath);
-
                 if (res?.IsSuccessStatusCode == true)
                 {
                     var deserializeResponse = JsonConvert.DeserializeObject<HTTPResponseWrapper<List<MyLearningDataResponse>>>(await res.Content.ReadAsStringAsync());
